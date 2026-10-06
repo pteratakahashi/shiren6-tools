@@ -1,0 +1,1189 @@
+<!doctype html>
+<html lang="ja">
+<!--
+Boyoyon reflection logic is based on "Siren6boyoyon" by MFV2 (https://github.com/MFV2/Siren6boyoyon)
+
+MIT License
+Copyright (c) 2024 MFV2
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+-->
+
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="風来のシレン6のボヨヨン壁の増殖ルートをスクショから自動検出。店の値段から未識別アイテムを絞り込む値段識別ツールも。無料・登録不要。">
+<meta property="og:title" content="風来のシレン6 便利ツール">
+<meta property="og:description" content="ボヨヨン壁の増殖ルートをスクショから自動検出/店の値段で未識別アイテムを識別">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary">
+<title>風来のシレン6 便利ツール</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Zen+Kaku+Gothic+New:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f2efe8; --panel:#ffffff; --ink:#23202b; --sub:#6b6676; --line:#d9d4ca;
+  --floor:#e7e2d6; --wall:#7a6450; --water:#5fa8b5; --sky:#cfd9ea;
+  --jelly1:#56a0f5; --jelly2:#c768d8; --accent:#e0457b; --path:#e0457b; --start:#1f8a5b;
+  box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#16151d; --panel:#211f2b; --ink:#ece8f2; --sub:#a29cb0; --line:#353243;
+    --floor:#2f2c3a; --wall:#6e5a48; --water:#2f7482; --sky:#3c4560;
+    --accent:#ff6b9d; --path:#ff6b9d; --start:#4fd69a;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#16151d; --panel:#211f2b; --ink:#ece8f2; --sub:#a29cb0; --line:#353243;
+  --floor:#2f2c3a; --wall:#6e5a48; --water:#2f7482; --sky:#3c4560;
+  --accent:#ff6b9d; --path:#ff6b9d; --start:#4fd69a;
+}
+*,*::before,*::after{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Zen Kaku Gothic New","Hiragino Sans","Noto Sans JP",sans-serif;font-size:16px;line-height:1.6}
+main{max-width:560px;margin:0 auto;padding:20px 16px 48px}
+h1{font-family:"Dela Gothic One","Hiragino Sans",sans-serif;font-weight:400;font-size:28px;line-height:1.25;margin:8px 0 6px;letter-spacing:.02em}
+h1 span{display:block;font-size:15px;color:var(--sub);font-family:inherit;letter-spacing:0;margin-bottom:4px}
+.lead{color:var(--sub);font-size:14px;margin:0 0 20px}
+section{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px}
+h2{font-size:17px;margin:0 0 10px;display:flex;gap:10px;align-items:center}
+h2 b{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:50%;background:var(--ink);color:var(--panel);font-size:14px}
+button,.filebtn{font:inherit;font-weight:700;border:0;border-radius:10px;padding:12px 16px;cursor:pointer;background:var(--ink);color:var(--panel);min-height:44px}
+button.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+button:disabled{opacity:.45;cursor:default}
+button:focus-visible,.filebtn:focus-within,input:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.filebtn{display:flex;align-items:center;justify-content:center;width:100%;position:relative;overflow:hidden}
+.filebtn input{position:absolute;inset:0;opacity:0;cursor:pointer}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.shotwrap{margin-top:12px}
+.shot{margin-bottom:12px}
+.shot .cap{display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--sub);margin-bottom:4px;gap:6px;flex-wrap:wrap}
+.nudge{display:flex;gap:4px}
+.nudge button{min-height:36px;min-width:40px;padding:4px 8px;font-size:15px}
+.shotwrap canvas{width:100%;height:auto;display:block;border-radius:8px;border:1px solid var(--line)}
+.legend{display:flex;gap:14px;font-size:12px;color:var(--sub);margin-top:6px;flex-wrap:wrap}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:4px;vertical-align:-1px}
+.lg-b{border:3px solid #39d0ff}.lg-f{background:#3ad17a}.lg-w{background:#ff4d5e}
+#aiBox{margin-top:10px;display:flex;flex-direction:column;gap:8px}
+#aiBox[hidden]{display:none}
+textarea{font:inherit;font-size:14px;width:100%;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:8px;padding:8px;resize:vertical;min-height:44px}
+.status{font-size:14px;color:var(--sub);margin-top:10px;white-space:pre-wrap}
+.status.err{color:var(--accent)}
+.hint{font-size:13px;color:var(--sub);margin:8px 0 0}
+.size input{width:56px;font:inherit;padding:8px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--ink);text-align:center}
+.brushes{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin:12px 0}
+.brush{background:var(--bg);color:var(--ink);border:2px solid transparent;padding:6px 2px;font-size:12px;display:flex;flex-direction:column;align-items:center;gap:4px;min-height:56px}
+.brush[aria-pressed="true"]{border-color:var(--accent)}
+.sw{width:22px;height:22px;border-radius:4px;border:1px solid var(--line)}
+.c-floor{background:var(--floor)}
+.c-boyo{background:linear-gradient(135deg,var(--jelly1) 45%,var(--jelly2) 50%,var(--jelly1) 58%)}
+.c-kabe{background:var(--wall)}
+.c-mizu{background:var(--water)}
+.c-sora{background:repeating-linear-gradient(45deg,var(--sky) 0 3px,var(--floor) 3px 6px)}
+.toggle{display:flex;align-items:center;gap:8px;font-size:14px}
+.toggle input{width:20px;height:20px;accent-color:var(--accent)}
+.boardwrap{overflow-x:auto;margin:0 -4px;padding:4px}
+.board{display:grid;gap:0;user-select:none;-webkit-user-select:none}
+.lbl{font-size:11px;color:var(--sub);display:grid;place-items:center}
+.gridarea{position:relative;display:grid;gap:1px;background:var(--line);border:1px solid var(--line);touch-action:none}
+.cell{aspect-ratio:1;position:relative}
+.cell.start::after{content:"";position:absolute;inset:18%;border-radius:50%;border:3px solid var(--start);background:color-mix(in srgb,var(--start) 30%,transparent)}
+.cell.cand::after{content:"";position:absolute;inset:32%;border-radius:50%;background:var(--start);opacity:.55}
+svg.overlay{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible}
+.results{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+.res{display:flex;align-items:center;gap:12px;text-align:left;background:var(--bg);color:var(--ink);border:2px solid transparent;font-weight:400;padding:10px 12px}
+.res[aria-pressed="true"]{border-color:var(--accent)}
+.res .arr{font-size:26px;line-height:1;width:32px;text-align:center;color:var(--accent);font-weight:700}
+.res .t{font-weight:700}
+.res .s{font-size:13px;color:var(--sub)}
+.res .w{font-size:12px;color:var(--accent)}
+.summary{font-weight:700;font-size:15px}
+.none{font-size:14px;color:var(--sub)}
+footer{font-size:12px;color:var(--sub);margin-top:24px;line-height:1.7}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid var(--sub);border-top-color:transparent;border-radius:50%;animation:sp 0.8s linear infinite;vertical-align:-2px;margin-right:6px}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion: reduce){.spin{animation:none}}
+
+.tabs{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:4px 0 16px;position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding:6px 0}
+.tab{background:var(--card);color:var(--ink);border:2px solid var(--line);font-weight:700;min-height:48px;padding:8px 6px;font-size:15px}
+.tab[aria-selected="true"]{border-color:var(--accent);color:var(--accent)}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.seg button{background:var(--bg);color:var(--ink);border:2px solid var(--line);font-weight:700;min-height:44px;font-size:14px;padding:6px}
+.seg button[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
+.priceIn{font:700 32px/1.2 inherit;font-family:inherit;width:100%;padding:10px 14px;border-radius:10px;border:2px solid var(--line);background:var(--bg);color:var(--ink);text-align:right;margin-top:12px}
+.priceIn:focus{outline:none;border-color:var(--accent)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.chip{background:var(--bg);color:var(--ink);border:2px solid var(--line);border-radius:999px;padding:6px 14px;min-height:40px;font-size:14px;font-weight:700}
+.chip[aria-pressed="true"]{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,var(--bg));color:var(--accent)}
+.pgroup{margin-top:14px}
+.pgroup h3{font-size:14px;margin:0 0 6px;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.pgroup h3 .tag{font-size:12px;font-weight:700;padding:1px 8px;border-radius:999px;background:var(--line);color:var(--ink)}
+.pgroup h3 .tag.cur{background:#7a3fb0;color:#fff}
+.pgroup h3 .tag.bls{background:#c99a1c;color:#fff}
+.items{display:flex;flex-wrap:wrap;gap:6px}
+.item{background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:6px 10px;min-height:40px;font-size:15px;font-weight:400;text-align:left}
+.item.known{text-decoration:line-through;color:var(--sub);opacity:.6}
+.warn{font-size:12.5px;color:var(--accent);margin-top:6px;line-height:1.5}
+.ref{width:100%;border-collapse:collapse;font-size:13.5px;margin-top:6px}
+.ref th,.ref td{border-top:1px solid var(--line);padding:6px 4px;text-align:left;vertical-align:top}
+.ref td.n{white-space:nowrap;font-variant-numeric:tabular-nums;text-align:right;padding-right:10px}
+.refwrap{overflow-x:auto}
+</style>
+</head>
+<body>
+<main>
+  <h1><span>風来のシレン6</span>便利ツール</h1>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" id="tabBtnBoyo" aria-controls="tabBoyo" aria-selected="true">ボヨヨン増殖ルート</button>
+    <button class="tab" role="tab" id="tabBtnPrice" aria-controls="tabPrice" aria-selected="false">値段識別</button>
+  </div>
+  <div id="tabBoyo" role="tabpanel">
+  <p class="lead">部屋のスクショからボヨヨン壁を自動で見つけ、上下左右すべてのボヨヨン壁に当たる投げ方を探します。</p>
+
+  <section id="readSec">
+    <h2><b>1</b>スクショを読み取る</h2>
+    <label class="filebtn">スクショを選ぶ(4枚まで)<input id="file" type="file" multiple accept="image/png,image/jpeg,image/webp,image/gif"></label>
+    <div class="shotwrap" id="shotWrap" hidden>
+      <div id="shots"></div>
+      <div class="legend"><span><i class="lg-b"></i>ボヨヨン</span><span><i class="lg-f"></i>床</span><span><i class="lg-w"></i>壁・部屋の外</span></div>
+    </div>
+    <div class="status" id="status"></div>
+    <div id="aiBox" hidden>
+      <textarea id="hint" rows="2" placeholder="Claudeへの補足(任意) 例: 左下はキャラに隠れているけどボヨヨン"></textarea>
+      <div class="row"><button id="aiBtn">Claudeで見直す</button><button id="stopBtn" class="ghost" hidden>中止</button></div>
+    </div>
+    <p class="hint">部屋が1枚に収まらないときは、重なりを2〜3行ずつ持たせて最大4枚まで分けて撮り、まとめて選んでください。重なった部分は自動でまとめます。読み取った印がスクショのマスとずれていないか、上の画像で確認してください。</p>
+  </section>
+
+  <section>
+    <h2><b>2</b>配置を確認・修正</h2>
+    <div class="row size">
+      <label>横 <input id="w" type="number" min="3" max="30" inputmode="numeric"></label>
+      <span>×</span>
+      <label>縦 <input id="h" type="number" min="3" max="30" inputmode="numeric"></label>
+      <button class="ghost" id="resizeBtn">サイズ変更</button>
+    </div>
+    <div class="brushes" id="brushes"></div>
+    <div class="boardwrap"><div class="board" id="board"></div></div>
+    <p class="hint">選んだ種類でマスをタップ(なぞると連続で塗れます)。同じ種類をもう一度タップすると床に戻ります。</p>
+    <div class="row" style="margin-top:10px;justify-content:space-between">
+      <label class="toggle"><input type="checkbox" id="bangle">ボヨヨンの腕輪を装備</label>
+      <button class="ghost" id="clearBtn">全部床にする</button>
+    </div>
+  </section>
+
+  <section>
+    <h2><b>3</b>増殖ルート</h2>
+    <div id="resultHead" class="summary"></div>
+    <div class="results" id="results"></div>
+  </section>
+
+  <p class="hint">座標は(横, 縦)で、左上が(1, 1)です。シレンが◯のマスに立ち、矢印の向きに投げます。</p>
+  </div>
+
+  <div id="tabPrice" role="tabpanel" hidden>
+    <p class="lead">店で見た値段から、未識別アイテムの候補を絞り込みます。種類を選んで値段を入れてください。</p>
+    <section>
+      <div class="seg" role="group" aria-label="値段の種類">
+        <button id="modeBuy" aria-pressed="true">店で買う値段</button>
+        <button id="modeSell" aria-pressed="false">店に売る値段</button>
+      </div>
+      <div class="chips" id="cats" role="group" aria-label="アイテムの種類"></div>
+      <input id="priceIn" class="priceIn" type="text" inputmode="numeric" pattern="[0-9]*" placeholder="例: 1500" aria-label="値段(ギタン)" autocomplete="off">
+      <div class="row" style="margin-top:10px;gap:16px">
+        <label class="toggle"><input type="checkbox" id="incCurse" checked>呪いも含める</label>
+        <label class="toggle"><input type="checkbox" id="incBless" checked>祝福も含める</label>
+      </div>
+      <div id="priceOut"></div>
+      <p class="hint">名前をタップすると「識別済み」として薄く表示し、候補の数え方から外します。<button class="ghost" id="resetKnown" style="min-height:36px;padding:4px 10px;margin-left:4px">識別済みを全部戻す</button></p>
+    </section>
+    <section>
+      <h2>値段の一覧</h2>
+      <div class="chips" id="refCats" role="group" aria-label="一覧の種類"></div>
+      <div class="refwrap" id="refOut"></div>
+      <p class="hint">杖は「基本の値段+回数×100」、壺は「基本の値段+容量×100」(売る値段は×40)。呪いは0.87倍(端数切り捨て)、祝福は2倍です。武器・盾は印や強化値で変わるため対象外、お香は全種同じ値段なので見分けられません。</p>
+    </section>
+  </div>
+</main>
+
+<script>
+(() => {
+"use strict";
+const TYPES = [
+  {k:"",     name:"床",       cls:"c-floor", ch:"."},
+  {k:"boyo", name:"ボヨヨン", cls:"c-boyo",  ch:"B"},
+  {k:"kabe", name:"普通の壁", cls:"c-kabe",  ch:"W"},
+  {k:"mizu", name:"水路",     cls:"c-mizu",  ch:"~"},
+  {k:"sora", name:"空域",     cls:"c-sora",  ch:"^"},
+];
+const clsOf = k => (TYPES.find(t => t.k === k) || TYPES[0]).cls;
+const ARROW = {"1,1":"↘","1,-1":"↗","-1,1":"↙","-1,-1":"↖"};
+const DIRNAME = {"1,1":"右下","1,-1":"右上","-1,1":"左下","-1,-1":"左上"};
+
+let W = 10, H = 10, cells = [], bangle = false, brush = "boyo", results = [], selected = 0, showAll = false;
+
+/* ---------- storage ---------- */
+function save(){ try{ localStorage.setItem("boyo-grid", JSON.stringify({W,H,cells,bangle})); }catch(e){} }
+function load(){
+  try{
+    const d = JSON.parse(localStorage.getItem("boyo-grid") || "null");
+    if (d && d.W && d.H && Array.isArray(d.cells) && d.cells.length === d.W*d.H){ W=d.W; H=d.H; cells=d.cells; bangle=!!d.bangle; return true; }
+  }catch(e){}
+  return false;
+}
+function defaultRoom(){
+  W = 10; H = 10; cells = new Array(W*H).fill("");
+  for (let y=0;y<H;y++) for (let x=0;x<W;x++) if (x===0||y===0||x===W-1||y===H-1) cells[y*W+x]="boyo";
+}
+
+/* ---------- simulation (port of MFV2 ボヨヨンチェッカー, MIT) ---------- */
+const get = (x,y) => (x<0||y<0||x>=W||y>=H) ? undefined : cells[y*W+x];
+const isWall = v => v === "kabe";
+const isRefl = v => v === "boyo" || (isWall(v) && bangle);
+
+function calc(sx, sy, vx, vy){
+  const vec = {x:vx, y:vy};
+  let now = {x:sx, y:sy}, cnt = 0, distance = 0, out = false;
+  const dirs = [], bounds = [], path = [{x:sx,y:sy}];
+  while (1000 > cnt++){
+    const next = {x: now.x+vec.x, y: now.y+vec.y};
+    let stop = false;
+    if (next.x<0||next.y<0||next.x>=W||next.y>=H){ out = true; stop = true; }
+    const g = {front:get(next.x,next.y), vertical:get(now.x,next.y), horizontal:get(next.x,now.y)};
+    const r = {front:isRefl(g.front), vertical:isRefl(g.vertical), horizontal:isRefl(g.horizontal)};
+    if (distance >= 10) stop = true;
+    if (next.x===sx && next.y===sy) stop = true;
+    if (isWall(g.front) && !bangle) stop = true;
+    if (!stop && r.front){
+      if ((r.vertical && r.horizontal) || (!r.vertical && !r.horizontal)) stop = true;
+      if (!g.vertical && r.horizontal){
+        distance = 0; bounds.push({x:now.x,y:now.y});
+        const d = vec.x===1 ? "right" : "left";
+        if (!dirs.includes(d) && g.front==="boyo") dirs.push(d);
+        vec.x *= -1; next.x = now.x;
+      } else if (g.vertical && !r.horizontal){
+        distance = 0; bounds.push({x:now.x,y:now.y});
+        const d = vec.y===1 ? "down" : "up";
+        if (!dirs.includes(d) && g.front==="boyo") dirs.push(d);
+        vec.y *= -1; next.y = now.y;
+      }
+    }
+    if (stop){
+      if (dirs.length === 4){
+        return {sx, sy, vx, vy, bounds, path, end:{x:now.x,y:now.y},
+                endFlag: isWall(g.front) ? "kabe" : (out ? "out" : "")};
+      }
+      return null;
+    }
+    now = next; distance++; path.push({x:now.x,y:now.y});
+  }
+  return null;
+}
+
+function simulate(){
+  const groups = new Map();
+  for (let y=0;y<H;y++) for (let x=0;x<W;x++){
+    if (cells[y*W+x] !== "") continue;
+    for (const [vx,vy] of [[1,1],[1,-1],[-1,1],[-1,-1]]){
+      const r = calc(x,y,vx,vy);
+      if (!r) continue;
+      const key = r.bounds.map(b=>b.x+","+b.y).join("|") + "#" + r.endFlag;
+      if (!groups.has(key)) groups.set(key, {main:r, starts:[]});
+      groups.get(key).starts.push(r);
+    }
+  }
+  const list = [...groups.values()];
+  for (const g of list){
+    // 最初の反射点までの距離が近い投げ位置を代表にする
+    g.starts.sort((a,b)=>a.path.length-b.path.length);
+    g.main = g.starts[0];
+  }
+  list.sort((a,b)=> (a.main.endFlag?1:0)-(b.main.endFlag?1:0) || a.main.bounds.length-b.main.bounds.length);
+  return list;
+}
+
+/* ---------- rendering ---------- */
+const $ = id => document.getElementById(id);
+const board = $("board");
+let gridEl, overlay;
+
+function buildBrushes(){
+  const box = $("brushes"); box.innerHTML = "";
+  for (const t of TYPES){
+    const b = document.createElement("button");
+    b.className = "brush"; b.type = "button";
+    b.setAttribute("aria-pressed", String(t.k===brush));
+    const sw = document.createElement("span"); sw.className = "sw " + t.cls;
+    const lb = document.createElement("span"); lb.textContent = t.name;
+    b.append(sw, lb);
+    b.onclick = () => { brush = t.k; buildBrushes(); };
+    box.append(b);
+  }
+}
+
+function buildBoard(){
+  $("w").value = W; $("h").value = H; $("bangle").checked = bangle;
+  board.innerHTML = "";
+  board.style.gridTemplateColumns = `18px minmax(0,1fr)`;
+  const corner = document.createElement("div");
+  const top = document.createElement("div");
+  top.style.display = "grid"; top.style.gridTemplateColumns = `repeat(${W},minmax(0,1fr))`; top.style.gap = "1px"; top.style.padding = "0 1px";
+  for (let x=0;x<W;x++){ const l=document.createElement("div"); l.className="lbl"; l.textContent=x+1; top.append(l); }
+  const left = document.createElement("div");
+  left.style.display = "grid"; left.style.gridTemplateRows = `repeat(${H},minmax(0,1fr))`; left.style.gap = "1px"; left.style.padding = "1px 0";
+  for (let y=0;y<H;y++){ const l=document.createElement("div"); l.className="lbl"; l.textContent=y+1; left.append(l); }
+  gridEl = document.createElement("div");
+  gridEl.className = "gridarea";
+  gridEl.style.gridTemplateColumns = `repeat(${W},minmax(0,1fr))`;
+  for (let i=0;i<W*H;i++){
+    const c = document.createElement("div");
+    c.className = "cell " + clsOf(cells[i]); c.dataset.i = i;
+    gridEl.append(c);
+  }
+  overlay = document.createElementNS("http://www.w3.org/2000/svg","svg");
+  overlay.setAttribute("class","overlay");
+  overlay.setAttribute("viewBox",`0 0 ${W} ${H}`);
+  overlay.setAttribute("preserveAspectRatio","none");
+  gridEl.append(overlay);
+  board.append(corner, top, left, gridEl);
+  board.style.width = Math.min(W*34+20, 2000) + "px";
+  board.style.maxWidth = W <= 16 ? "100%" : "none";
+  attachPaint();
+}
+
+function paintCell(i){
+  cells[i] = (cells[i] === brush && paintMode === "toggle") ? "" : brush;
+  gridEl.children[i].className = "cell " + clsOf(cells[i]);
+}
+
+let painting = false, paintMode = "toggle", lastI = -1, dirty = false;
+function attachPaint(){
+  gridEl.onpointerdown = e => {
+    const c = e.target.closest(".cell"); if (!c) return;
+    painting = true; lastI = +c.dataset.i;
+    paintMode = "toggle"; paintCell(lastI); paintMode = cells[lastI]===brush ? "set" : "erase";
+    dirty = true; e.preventDefault();
+  };
+  gridEl.onpointermove = e => {
+    if (!painting) return;
+    const el = document.elementFromPoint(e.clientX, e.clientY);
+    const c = el && el.closest && el.closest(".cell");
+    if (!c || !gridEl.contains(c)) return;
+    const i = +c.dataset.i; if (i === lastI) return; lastI = i;
+    cells[i] = paintMode === "set" ? brush : ""; gridEl.children[i].className = "cell " + clsOf(cells[i]);
+  };
+  const end = () => { if (painting){ painting = false; if (dirty){ dirty=false; save(); run(); drawShot(); } } };
+  gridEl.onpointerup = end; gridEl.onpointercancel = end; gridEl.onpointerleave = end;
+}
+
+function run(){
+  results = simulate(); selected = 0; showAll = false;
+  renderResults(); drawRoute();
+}
+
+function renderResults(){
+  const box = $("results"); box.innerHTML = "";
+  const boyoCount = cells.filter(c=>c==="boyo").length;
+  if (!boyoCount){ $("resultHead").textContent = ""; box.innerHTML = `<p class="none">ボヨヨン壁を置くと、ここに投げ方が出ます。</p>`; return; }
+  if (!results.length){
+    $("resultHead").textContent = "増殖できる投げ方は見つかりませんでした";
+    box.innerHTML = `<p class="none">配置の読み違いがないか、2のマスをもう一度見比べてください。本当にこの形なら増殖できない部屋です${bangle?"":"(ボヨヨンの腕輪があれば変わる場合があります)"}。</p>`;
+    return;
+  }
+  $("resultHead").textContent = `${results.length}通りの投げ方が見つかりました`;
+  const LIMIT = 8;
+  results.forEach((g, idx) => {
+    if (!showAll && idx >= LIMIT && idx !== selected) return;
+    const m = g.main, k = m.vx+","+m.vy;
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "res"; b.setAttribute("aria-pressed", String(idx===selected));
+    const others = g.starts.length - 1;
+    const warn = m.endFlag==="kabe" ? "最後に普通の壁に当たって止まります(壺に投げ入れる用途は不可)" : m.endFlag==="out" ? "最後に部屋の外へ飛んでいきます" : "";
+    b.innerHTML = `<span class="arr" aria-hidden="true">${ARROW[k]}</span><span><span class="t"></span><br><span class="s"></span>${warn?`<br><span class="w"></span>`:""}</span>`;
+    b.querySelector(".t").textContent = `(${m.sx+1}, ${m.sy+1}) から${DIRNAME[k]}へ投げる`;
+    b.querySelector(".s").textContent = `反射${m.bounds.length}回` + (others ? `/同じ軌道の投げ位置があと${others}マス` : "");
+    if (warn) b.querySelector(".w").textContent = warn;
+    b.onclick = () => { selected = idx; renderResults(); drawRoute(); gridEl.scrollIntoView({behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block:"center"}); };
+    box.append(b);
+  });
+  if (!showAll && results.length > LIMIT){
+    const more = document.createElement("button"); more.type="button"; more.className="ghost";
+    more.textContent = `残り${results.length-LIMIT}通りも表示`;
+    more.onclick = () => { showAll = true; renderResults(); };
+    box.append(more);
+  }
+}
+
+function drawRoute(){
+  [...gridEl.querySelectorAll(".cell")].forEach(c => c.classList.remove("start","cand"));
+  overlay.innerHTML = "";
+  const g = results[selected]; if (!g) return;
+  const m = g.main;
+  for (const s of g.starts.slice(1)) gridEl.children[s.sy*W+s.sx].classList.add("cand");
+  gridEl.children[m.sy*W+m.sx].classList.add("start");
+  const ns = "http://www.w3.org/2000/svg";
+  const pts = m.path.map(p => `${p.x+0.5},${p.y+0.5}`).join(" ");
+  const pl = document.createElementNS(ns,"polyline");
+  pl.setAttribute("points", pts);
+  pl.setAttribute("fill","none"); pl.setAttribute("stroke","var(--path)");
+  pl.setAttribute("stroke-width","3"); pl.setAttribute("vector-effect","non-scaling-stroke");
+  pl.setAttribute("stroke-linejoin","round"); pl.setAttribute("stroke-linecap","round");
+  overlay.append(pl);
+  m.bounds.forEach((b, i) => {
+    const t = document.createElementNS(ns,"text");
+    t.setAttribute("x", b.x+0.5); t.setAttribute("y", b.y+0.5);
+    t.setAttribute("font-size","0.42"); t.setAttribute("text-anchor","middle"); t.setAttribute("dominant-baseline","central");
+    t.setAttribute("fill","var(--ink)"); t.setAttribute("font-weight","700");
+    t.setAttribute("paint-order","stroke"); t.setAttribute("stroke","var(--panel)"); t.setAttribute("stroke-width","0.12");
+    t.textContent = i+1;
+    overlay.append(t);
+  });
+  const e = m.end, x = document.createElementNS(ns,"circle");
+  x.setAttribute("cx", e.x+0.5); x.setAttribute("cy", e.y+0.5); x.setAttribute("r","0.16"); x.setAttribute("fill","var(--path)");
+  overlay.append(x);
+}
+
+/* ---------- resize / controls ---------- */
+$("resizeBtn").onclick = () => {
+  const nw = Math.max(3, Math.min(30, parseInt($("w").value)||W));
+  const nh = Math.max(3, Math.min(30, parseInt($("h").value)||H));
+  const nc = new Array(nw*nh).fill("");
+  for (let y=0;y<Math.min(H,nh);y++) for (let x=0;x<Math.min(W,nw);x++) nc[y*nw+x] = cells[y*W+x];
+  W = nw; H = nh; cells = nc; save(); buildBoard(); run();
+};
+$("bangle").onchange = e => { bangle = e.target.checked; save(); run(); };
+$("clearBtn").onclick = () => { cells = new Array(W*H).fill(""); save(); buildBoard(); run(); if (typeof drawShot==="function") drawShot(); };
+
+/* ---------- screenshot reading ---------- */
+// ボヨヨン壁 自動検出: RGBA配列 -> グリッド
+function detectBoyo(px, W0, H0){
+  const N = W0*H0, lab = new Int32Array(N), core = new Uint8Array(N);
+  for (let i=0;i<N;i++){
+    const r=px[i*4], g=px[i*4+1], b=px[i*4+2];
+    core[i] = (b>200 && b-r>85 && g>150) ? 1 : 0;
+  }
+  // 4近傍の連結成分
+  let bl = [], stack = new Int32Array(N), id = 0;
+  for (let i=0;i<N;i++){
+    if (!core[i] || lab[i]) continue;
+    id++; let sp=0; stack[sp++]=i; lab[i]=id;
+    let x0=1e9,y0=1e9,x1=-1,y1=-1,a=0;
+    while (sp){
+      const j=stack[--sp], x=j%W0, y=(j-x)/W0; a++;
+      if(x<x0)x0=x; if(x>x1)x1=x; if(y<y0)y0=y; if(y>y1)y1=y;
+      if (x>0   && core[j-1]  && !lab[j-1])  {lab[j-1]=id;  stack[sp++]=j-1;}
+      if (x<W0-1&& core[j+1]  && !lab[j+1])  {lab[j+1]=id;  stack[sp++]=j+1;}
+      if (y>0   && core[j-W0] && !lab[j-W0]) {lab[j-W0]=id; stack[sp++]=j-W0;}
+      if (y<H0-1&& core[j+W0] && !lab[j+W0]) {lab[j+W0]=id; stack[sp++]=j+W0;}
+    }
+    if (x0<=1 || y0<=1 || x1>=W0-2 || y1>=H0-2) continue; // 画面端で切れたブロックは形が崩れるので使わない
+    bl.push([x0,y0,x1+1,y1+1,a]);
+  }
+  if (!bl.length) return null;
+  const pct = (arr,q) => { const s=[...arr].sort((a,b)=>a-b); const k=(s.length-1)*q/100, f=Math.floor(k), c=Math.ceil(k); return s[f]+(s[c]-s[f])*(k-f); };
+  const median = arr => pct(arr,50);
+  const amax = pct(bl.map(b=>b[4]),90);
+  bl = bl.filter(b=>b[4]>amax*0.08);
+  const tops0 = bl.filter(b=>(b[3]-b[1])/(b[2]-b[0])>0.65 && b[4]>amax*0.4);
+  const wt = median((tops0.length?tops0:bl).map(b=>b[2]-b[0]));
+  // 重なりUIで割れたブロックを結合
+  let changed = true;
+  while (changed){
+    changed = false;
+    outer: for (let i=0;i<bl.length;i++) for (let j=i+1;j<bl.length;j++){
+      const a=bl[i], b=bl[j];
+      const gx=Math.max(a[0],b[0])-Math.min(a[2],b[2]), gy=Math.max(a[1],b[1])-Math.min(a[3],b[3]);
+      const ux=Math.max(a[2],b[2])-Math.min(a[0],b[0]), uy=Math.max(a[3],b[3])-Math.min(a[1],b[1]);
+      if (gx<0.25*wt && gy<0.25*wt && ux<1.25*wt && uy<1.1*wt){
+        bl[i]=[Math.min(a[0],b[0]),Math.min(a[1],b[1]),Math.max(a[2],b[2]),Math.max(a[3],b[3]),a[4]+b[4]];
+        bl.splice(j,1); changed=true; break outer;
+      }
+    }
+  }
+  const pts = [];
+  for (const b of bl){
+    const w=b[2]-b[0], h=b[3]-b[1];
+    if (w<0.5*wt || h<0.3*wt) continue;
+    pts.push({x:(b[0]+b[2])/2, y:(b[1]+b[3])/2, kind: h/w>0.72 ? "top" : "front"});
+  }
+  if (pts.length < 4) return null;
+  // 行のクラスタリング
+  const ys = pts.map(p=>p.y).sort((a,b)=>a-b);
+  const cl = [[ys[0]]];
+  for (const y of ys.slice(1)){ const last=cl[cl.length-1]; if (y-last[last.length-1] < 0.4*wt) last.push(y); else cl.push([y]); }
+  const cy = cl.map(c=>c.reduce((s,v)=>s+v,0)/c.length);
+  const linfit = (xs, ys) => { const n=xs.length, mx=xs.reduce((a,b)=>a+b)/n, my=ys.reduce((a,b)=>a+b)/n; let sxy=0,sxx=0; for(let i=0;i<n;i++){sxy+=(xs[i]-mx)*(ys[i]-my); sxx+=(xs[i]-mx)**2;} const b=sxx?sxy/sxx:0; return [my-b*mx,b]; };
+  const ptp = a => Math.max(...a)-Math.min(...a);
+  const gaps = []; for (let i=0;i<cy.length-1;i++) gaps.push([cy[i+1]-cy[i],(cy[i+1]+cy[i])/2]);
+  const base = gaps.length ? Math.min(...gaps.map(g=>g[0])) : 1.4*wt;
+  const ones = gaps.filter(g=>g[0]<1.5*base);
+  let sa, sb;
+  if (ones.length>=2 && ptp(ones.map(g=>g[1]))>1) [sa,sb] = linfit(ones.map(g=>g[1]), ones.map(g=>g[0]));
+  else { sa = ones.length ? ones.reduce((s,g)=>s+g[0],0)/ones.length : 1.4*wt; sb = 0; }
+  // シレン6のカメラは固定なので、遠近の傾きは決まった範囲に収まる。外れたら標準値に寄せる
+  if (!(sb>0.02 && sb<0.045)){ sb = 0.033; sa = ones.length ? median(ones.map(g=>g[0]-sb*g[1])) : 1.4*wt; }
+  const S = y => sa + sb*y;
+  const ridx = [0];
+  for (let i=1;i<cy.length;i++) ridx.push(ridx[i-1] + Math.max(1, Math.round((cy[i]-cy[i-1])/S((cy[i]+cy[i-1])/2))));
+  const rowY = new Map(); ridx.forEach((r,i)=>rowY.set(r,cy[i]));
+  const rowOf = y => { let bi=0; cy.forEach((c,i)=>{ if (Math.abs(y-c)<Math.abs(y-cy[bi])) bi=i; }); return ridx[bi]; };
+  const yRow = r => {
+    if (rowY.has(r)) return rowY.get(r);
+    let k = [...rowY.keys()].reduce((a,b)=>Math.abs(b-r)<Math.abs(a-r)?b:a), y = rowY.get(k);
+    while (k<r){ y += S(y); k++; }
+    while (k>r){ y -= S(y - S(y)*0.5); k--; }
+    return y;
+  };
+  const cubes = pts.map(p => ({x:p.x, r: rowOf(p.y) - (p.kind==="front" ? 1 : 0)}));
+  // 列のピッチ(遠近で行ごとに変化)
+  const byR = new Map(); for (const c of cubes){ if(!byR.has(c.r)) byR.set(c.r,[]); byR.get(c.r).push(c.x); }
+  const diffs = [];
+  for (const [r,xs] of byR){ const s=[...new Set(xs.map(Math.round))].sort((a,b)=>a-b); for (let i=0;i<s.length-1;i++){ const d=s[i+1]-s[i]; if (d>0.6*wt) diffs.push([d,yRow(r)]); } }
+  if (!diffs.length) return null;
+  const dmin = pct(diffs.map(d=>d[0]),20);
+  const one = diffs.map(([d,y])=>[d/Math.max(1,Math.round(d/dmin)), y]);
+  let pa, pb;
+  if (one.length>=3 && ptp(one.map(o=>o[1]))>1) [pa,pb] = linfit(one.map(o=>o[1]), one.map(o=>o[0]));
+  else { pa = median(one.map(o=>o[0])); pb = 0; }
+  if (!(pb>0.008 && pb<0.03)){ pb = 0.018; pa = median(one.map(([d,y])=>d-pb*y)); }
+  const P = y => pa + pb*y;
+  // 消失点のx座標を探索
+  let best = null;
+  const cyr = cubes.map(c=>yRow(c.r)), cpr = cyr.map(P);
+  for (let vx=-W0; vx<2*W0; vx+=2){
+    let re=0, im=0;
+    for (let i=0;i<cubes.length;i++){ const u=(cubes[i].x-vx)/cpr[i]; re+=Math.cos(2*Math.PI*u); im+=Math.sin(2*Math.PI*u); }
+    const m = Math.hypot(re,im)/cubes.length;
+    if (!best || m>best[0]) best = [m, vx, Math.atan2(im,re)/(2*Math.PI)];
+  }
+  const [coh, vx, ph] = best;
+  for (let i=0;i<cubes.length;i++) cubes[i].c = Math.round((cubes[i].x-vx)/cpr[i] - ph);
+  const r0=Math.min(...cubes.map(c=>c.r)), r1=Math.max(...cubes.map(c=>c.r));
+  const c0=Math.min(...cubes.map(c=>c.c)), c1=Math.max(...cubes.map(c=>c.c));
+  const Wd=c1-c0+1, Hd=r1-r0+1;
+  if (Wd>30 || Hd>30 || Wd<2 || Hd<2) return null;
+  const grid = Array.from({length:Hd},()=>new Array(Wd).fill("?"));
+  for (const c of cubes) grid[c.r-r0][c.c-c0] = "B";
+  const isB = (r,c) => r>=0 && r<Hd && c>=0 && c<Wd && grid[r][c]==="B";
+  const geo = (r,c) => { const yr=yRow(r+r0), sr=S(yr), pr=P(yr); return {xc: vx+(c+c0+ph)*pr, yr, sr, pr}; };
+  const patch = (r,c) => {
+    const {xc,yr,sr,pr} = geo(r,c), out=[];
+    for (let a=0;a<5;a++) for (let b=0;b<7;b++){
+      const X=Math.floor(xc+(-0.3+0.1*b)*pr), Y=Math.floor(yr+(0.12+0.1*a)*sr);
+      if (X>=0 && X<W0 && Y>=0 && Y<H0){ const i=(Y*W0+X)*4; out.push([px[i],px[i+1],px[i+2]]); }
+    }
+    return out;
+  };
+  const sides = (r,c) => {
+    let L=false,R=false,U=false,D=false;
+    for (let k=0;k<c;k++) L=L||isB(r,k); for (let k=c+1;k<Wd;k++) R=R||isB(r,k);
+    for (let k=0;k<r;k++) U=U||isB(k,c); for (let k=r+1;k<Hd;k++) D=D||isB(k,c);
+    return L+R+U+D;
+  };
+  const inner = (r,c) => sides(r,c)===4;
+  // 床の基準色(壁に囲まれた内側マスの中央値)
+  let ref = null; const refPx = [];
+  for (let r=0;r<Hd;r++) for (let c=0;c<Wd;c++) if (grid[r][c]!=="B" && inner(r,c)) refPx.push(...patch(r,c));
+  if (refPx.length) ref = [0,1,2].map(k=>median(refPx.map(p=>p[k])));
+  // 影対策: 明るさが違っても色味(RGBの比率)が床と同じなら床とみなす。部屋の外の雲などと紛れないよう、3方向以上をボヨヨン壁に囲まれたマスだけに使う
+  const refL = ref ? (ref[0]+ref[1]+ref[2]) : 0;
+  const shade = p => {
+    const L = p[0]+p[1]+p[2]; if (!ref || L < 45) return false;
+    const t = L/refL; if (t < 0.25 || t > 3) return false;
+    return Math.max(...p.map((v,k)=>Math.abs(v/L - ref[k]/refL))) < 0.05;
+  };
+  for (let r=0;r<Hd;r++) for (let c=0;c<Wd;c++){
+    if (grid[r][c]==="B") continue;
+    const ps = patch(r,c), sd = sides(r,c), inn = sd===4;
+    const ok = ps.filter(p => ref ? (Math.max(...p.map((v,k)=>Math.abs(v-ref[k])))<38 || (sd>=3 && shade(p)))
+                                   : (Math.max(...p)-Math.min(...p)<30 && (p[0]+p[1]+p[2])/3>70 && (p[0]+p[1]+p[2])/3<215)).length;
+    grid[r][c] = (ps.length && ok/ps.length >= (inn?0.05:0.25)) ? "." : "W";
+  }
+  // 一番大きい床のかたまりだけ残す
+  const seen = new Set(), comps = [];
+  for (let r=0;r<Hd;r++) for (let c=0;c<Wd;c++){
+    if (grid[r][c]!=="." || seen.has(r*100+c)) continue;
+    const st=[[r,c]], comp=[]; seen.add(r*100+c);
+    while (st.length){ const [a,b]=st.pop(); comp.push([a,b]);
+      for (const [da,db] of [[1,0],[-1,0],[0,1],[0,-1]]){ const q=[a+da,b+db];
+        if (q[0]>=0&&q[0]<Hd&&q[1]>=0&&q[1]<Wd&&!seen.has(q[0]*100+q[1])&&grid[q[0]][q[1]]==="."){ seen.add(q[0]*100+q[1]); st.push(q); } } }
+    comps.push(comp);
+  }
+  if (comps.length){ const big = comps.reduce((a,b)=>b.length>a.length?b:a); for (const comp of comps) if (comp!==big) for (const [a,b] of comp) grid[a][b]="W"; }
+  // 表示用のマーカー位置
+  const marks = [];
+  for (let r=0;r<Hd;r++) for (let c=0;c<Wd;c++){
+    const {xc,yr,sr,pr} = geo(r,c);
+    marks.push({r,c,x:xc,y: grid[r][c]==="B" ? yr : yr+0.32*sr, p:pr});
+  }
+  return {rows: grid.map(r=>r.join("")), coh, cubes: cubes.length, marks, W:Wd, H:Hd};
+}
+
+let sample = null, files = [], ctl = null, shots = [], merged = null, imgCount = 1;
+const status = (msg, err=false, busy=false) => {
+  const s = $("status"); s.className = "status" + (err ? " err" : "");
+  s.innerHTML = busy ? '<span class="spin"></span>' : ""; s.append(document.createTextNode(msg));
+};
+const CH = {"":".", boyo:"B", kabe:"W", mizu:"~", sora:"^"};
+const FROM_CH = {"B":"boyo","W":"kabe","#":"kabe",".":"","~":"mizu","^":"sora"};
+const NAME = {"":"床", boyo:"ボヨヨン", kabe:"壁", mizu:"水路", sora:"空域"};
+const gridRows = () => { const out=[]; for (let y=0;y<H;y++){ let r=""; for (let x=0;x<W;x++) r+=CH[cells[y*W+x]]; out.push(r); } return out; };
+const synced = () => merged && merged.W === W && merged.H === H;
+
+/* ---- 複数枚の統合 ---- */
+function overlapScore(M, d, oy, ox){
+  let s=0, bm=0;
+  d.rows.forEach((row,r)=>[...row].forEach((ch,c)=>{
+    const k = M.get((r+oy)+","+(c+ox)); if (k===undefined) return;
+    if (ch==="B" && k==="B"){ s+=2; bm++; }
+    else if ((ch==="B"&&k===".")||(ch==="."&&k==="B")) s-=3;
+    else if (ch==="B"||k==="B") s-=0.3;
+    else if (ch==="."&&k===".") s+=0.1;
+    else s-=0.1;
+  }));
+  return {s, bm};
+}
+function bestOffset(M, d){
+  let rmin=1e9,rmax=-1e9,cmin=1e9,cmax=-1e9;
+  for (const k of M.keys()){ const [r,c]=k.split(",").map(Number); rmin=Math.min(rmin,r); rmax=Math.max(rmax,r); cmin=Math.min(cmin,c); cmax=Math.max(cmax,c); }
+  const cand=[];
+  for (let oy=rmin-d.H+1; oy<=rmax; oy++) for (let ox=cmin-d.W+1; ox<=cmax; ox++){
+    const sc = overlapScore(M,d,oy,ox); cand.push({oy,ox,...sc});
+  }
+  cand.sort((a,b)=>b.s-a.s);
+  return {best:cand[0], second:cand[1]};
+}
+function addTo(M, d, oy, ox){
+  d.rows.forEach((row,r)=>[...row].forEach((ch,c)=>{
+    const key=(r+oy)+","+(c+ox), k=M.get(key);
+    M.set(key, (ch==="B"||k==="B") ? "B" : (ch==="."||k===".") ? "." : "W");
+  }));
+}
+function mergeShots(){
+  shots.forEach(s=>{ if (s.weakUsed){ s.det = null; s.weakUsed = false; } s.ai = false; });
+  if (shots.some(s=>s.det)) shots.forEach(s=>{ if (!s.det && s.weak){ s.det = s.weak; s.weakUsed = true; } });
+  let ok = shots.filter(s=>s.det);
+  if (!ok.length) return null;
+  const strict = ok.filter(s=>!s.weakUsed);
+  const base = strict.reduce((a,b)=>b.det.cubes>a.det.cubes?b:a);
+  base.oy=0; base.ox=0; base.warn="";
+  const M = new Map(); addTo(M, base.det, 0, 0);
+  let rest = ok.filter(s=>s!==base);
+  while (rest.length){
+    let pick=null, pickRes=null;
+    for (const s of rest){
+      if (s.manual){ pick=s; pickRes={best:{oy:s.oy,ox:s.ox}}; break; }
+      const res = bestOffset(M, s.det);
+      if (s.weakUsed && !(res.best.bm>=2 && !(res.second && res.second.s >= res.best.s-1.5))) continue;
+      if (!pickRes || res.best.s > pickRes.best.s){ pick=s; pickRes=res; }
+    }
+    if (!pick){ rest.forEach(s=>{ s.det=null; s.weakUsed=false; }); ok = ok.filter(s=>s.det); break; }
+    if (!pick.manual){
+      const {best, second} = pickRes;
+      pick.oy=best.oy; pick.ox=best.ox;
+      pick.warn = best.bm < 3 ? "重なる壁が少なく、位置が不確かです" : (second && second.s >= best.s-1.5 ? "重なる位置の候補が複数あります" : "");
+    } else pick.warn = "";
+    addTo(M, pick.det, pick.oy, pick.ox);
+    rest = rest.filter(s=>s!==pick);
+  }
+  // 床でも壁でもない所を除いて外枠を決める
+  let rmin=1e9,rmax=-1e9,cmin=1e9,cmax=-1e9;
+  for (const [k,v] of M){ if (v==="W") continue; const [r,c]=k.split(",").map(Number); rmin=Math.min(rmin,r); rmax=Math.max(rmax,r); cmin=Math.min(cmin,c); cmax=Math.max(cmax,c); }
+  const Hm = Math.min(30, rmax-rmin+1), Wm = Math.min(30, cmax-cmin+1);
+  const g = Array.from({length:Hm},(_,r)=>Array.from({length:Wm},(_,c)=>M.get((r+rmin)+","+(c+cmin)) || "W"));
+  // 一番大きい床のかたまりだけ残す
+  const seen=new Set(), comps=[];
+  for (let r=0;r<Hm;r++) for (let c=0;c<Wm;c++){
+    if (g[r][c]!=="."||seen.has(r*100+c)) continue;
+    const st=[[r,c]], comp=[]; seen.add(r*100+c);
+    while (st.length){ const [y,x]=st.pop(); comp.push([y,x]);
+      for (const [dy,dx] of [[1,0],[-1,0],[0,1],[0,-1]]){ const yy=y+dy, xx=x+dx;
+        if (yy>=0&&yy<Hm&&xx>=0&&xx<Wm&&!seen.has(yy*100+xx)&&g[yy][xx]==="."){ seen.add(yy*100+xx); st.push([yy,xx]); } } }
+    comps.push(comp);
+  }
+  if (comps.length){ const big=comps.reduce((a,b)=>b.length>a.length?b:a); for (const comp of comps) if (comp!==big) for (const [y,x] of comp) g[y][x]="W"; }
+  for (const s of ok){ s.gy = s.oy - rmin; s.gx = s.ox - cmin; }
+  return {rows: g.map(r=>r.join("")), W:Wm, H:Hm, clipped: (rmax-rmin+1)>30 || (cmax-cmin+1)>30, cubes: ok.reduce((n,s)=>n+s.det.cubes,0)};
+}
+
+function cropOf(s){
+  const d=s.det, xs=d.marks.map(m=>m.x), ys=d.marks.map(m=>m.y), pm=Math.max(...d.marks.map(m=>m.p));
+  const ox=Math.max(0,Math.floor(Math.min(...xs)-pm*1.1)), oy=Math.max(0,Math.floor(Math.min(...ys)-pm*1.1));
+  return {ox, oy, w: Math.min(s.img.width, Math.ceil(Math.max(...xs)+pm*0.9))-ox, h: Math.min(s.img.height, Math.ceil(Math.max(...ys)+pm*0.9))-oy};
+}
+
+function drawShot(){
+  shots.forEach(s=>{
+    const cv=s.canvas, ctx=cv.getContext("2d");
+    const cr = s.det ? cropOf(s) : {ox:0, oy:0, w:s.img.width, h:s.img.height};
+    cv.width=cr.w; cv.height=cr.h;
+    ctx.drawImage(s.img, cr.ox, cr.oy, cr.w, cr.h, 0, 0, cr.w, cr.h);
+    if (!s.det || !synced()) return;
+    ctx.save(); ctx.translate(-cr.ox, -cr.oy);
+    for (const m of s.det.marks){
+      const R0=m.r+s.gy, C0=m.c+s.gx;
+      if (R0<0||C0<0||R0>=H||C0>=W) continue;
+      const k=cells[R0*W+C0], R=Math.max(5,m.p*0.16);
+      ctx.lineWidth=Math.max(2,m.p*0.05);
+      if (k==="boyo"){
+        ctx.strokeStyle="#ffffff"; ctx.beginPath(); ctx.arc(m.x,m.y,R+ctx.lineWidth,0,7); ctx.stroke();
+        ctx.strokeStyle="#39d0ff"; ctx.beginPath(); ctx.arc(m.x,m.y,R,0,7); ctx.stroke();
+      } else if (k===""){
+        ctx.fillStyle="#3ad17a"; ctx.strokeStyle="#fff"; ctx.beginPath(); ctx.arc(m.x,m.y,R*0.6,0,7); ctx.fill(); ctx.stroke();
+      } else {
+        ctx.strokeStyle = k==="kabe" ? "#ff4d5e" : "#ffd23f"; const d=R*0.6;
+        ctx.beginPath(); ctx.moveTo(m.x-d,m.y-d); ctx.lineTo(m.x+d,m.y+d); ctx.moveTo(m.x+d,m.y-d); ctx.lineTo(m.x-d,m.y+d); ctx.stroke();
+      }
+    }
+    ctx.textAlign="center"; ctx.textBaseline="middle";
+    for (const m of s.det.marks){
+      const f=Math.max(11,m.p*0.26); ctx.font=`700 ${f}px sans-serif`; ctx.lineWidth=f*0.25; ctx.strokeStyle="#000"; ctx.fillStyle="#fff";
+      if (m.c===0){ const x=m.x-m.p*0.75; ctx.strokeText(m.r+s.gy+1,x,m.y); ctx.fillText(m.r+s.gy+1,x,m.y); }
+      if (m.r===0){ const y=m.y-m.p*0.62; ctx.strokeText(m.c+s.gx+1,m.x,y); ctx.fillText(m.c+s.gx+1,m.x,y); }
+    }
+    ctx.restore();
+  });
+}
+
+function buildShots(){
+  const box=$("shots"); box.innerHTML="";
+  const multi = shots.length > 1;
+  shots.forEach((s,i)=>{
+    const wrap=document.createElement("div"); wrap.className="shot";
+    if (multi){
+      const cap=document.createElement("div"); cap.className="cap";
+      const t=document.createElement("span");
+      t.textContent = `${i+1}枚目` + (!s.det ? "(自動検出できず)" : s.warn ? `:${s.warn}` : "");
+      cap.append(t);
+      if (s.det && (s.oy!==0 || s.ox!==0 || s.manual || s.warn)){
+        const nd=document.createElement("div"); nd.className="nudge";
+        for (const [lab,dy,dx,aria] of [["←",0,-1,"左へ1マス"],["→",0,1,"右へ1マス"],["↑",-1,0,"上へ1マス"],["↓",1,0,"下へ1マス"]]){
+          const b=document.createElement("button"); b.type="button"; b.className="ghost"; b.textContent=lab; b.setAttribute("aria-label",`${i+1}枚目を${aria}ずらす`);
+          b.onclick=()=>{ s.oy+=dy; s.ox+=dx; s.manual=true; remerge(`${i+1}枚目の位置をずらしました。`); };
+          nd.append(b);
+        }
+        cap.append(nd);
+      }
+      wrap.append(cap);
+    }
+    s.canvas=document.createElement("canvas"); wrap.append(s.canvas);
+    box.append(wrap);
+  });
+}
+
+function applyRows(rows){
+  const nh = Math.min(30, rows.length), nw = Math.min(30, Math.max(...rows.map(r=>[...r].length)));
+  const nc = [];
+  for (let y=0;y<nh;y++){ const r=[...rows[y]]; for (let x=0;x<nw;x++){ const ch=r[x]; nc.push(ch===undefined ? "kabe" : (FROM_CH[ch] ?? "")); } }
+  W = nw; H = nh; cells = nc; save(); buildBoard(); run(); drawShot();
+}
+
+function remerge(prefix=""){
+  merged = mergeShots();
+  buildShots();
+  if (merged){ applyRows(merged.rows); }
+  else drawShot();
+  const failed = shots.map((s,i)=>s.det?null:i+1).filter(Boolean);
+  const ok = shots.length - failed.length;
+  let msg = prefix;
+  if (merged){
+    msg += shots.length>1 ? `${ok}枚を${merged.W}×${merged.H}マスにまとめました(ボヨヨン壁は延べ${merged.cubes}個検出)。` : `ボヨヨン壁を${merged.cubes}個見つけ、${merged.W}×${merged.H}マスで読み取りました。`;
+    if (failed.length) msg += `${failed.join("・")}枚目は自動では位置を合わせられませんでした。` + (sample ? "下の「Claudeで残りをつなげる」を押すと、壁の並びや出入口の形から位置を推測して盤面を広げます。" : "はみ出た部分は2でサイズを広げて手入力してください。");
+    if (shots.some(s=>s.warn)) msg += "位置が不確かな写真があります。画像の番号と盤面がずれていたら、矢印で1マスずつ動かしてください。";
+    if (merged.clipped) msg += "30マスを超えた分は切り捨てています。";
+    msg += "印がずれている・隠れて読めていないマスは、2でタップして直してください。";
+    $("aiBtn").textContent = failed.length ? "Claudeで残りをつなげる" : "Claudeで見直す";
+    status(msg);
+  } else {
+    $("aiBtn").textContent = "Claudeで読み取る";
+    status(sample ? (shots.length===1 ? "自動ではマス目を検出できませんでした。「Claudeで読み取る」を押してください。" : "どの写真からも自動でマス目を検出できませんでした。「Claudeで読み取る」を押すと、全部の写真から1つの盤面を作ります。")
+                  : "自動ではマス目を検出できませんでした。2で手入力してください。", !sample);
+  }
+  $("aiBox").hidden = !sample;
+}
+
+const loadShot = f => new Promise(res => {
+  const fr = new FileReader();
+  fr.onload = () => {
+    const img = new Image();
+    img.onload = () => {
+      const sc = Math.min(1, 1600/Math.max(img.width, img.height));
+      const cv = document.createElement("canvas");
+      cv.width = Math.round(img.width*sc); cv.height = Math.round(img.height*sc);
+      cv.getContext("2d").drawImage(img, 0, 0, cv.width, cv.height);
+      let d = null;
+      try{ d = detectBoyo(cv.getContext("2d").getImageData(0,0,cv.width,cv.height).data, cv.width, cv.height); }catch(e){ d = null; }
+      let weak = null;
+      if (d){ const fl = d.rows.join("").split(".").length-1;
+        if (!(d.coh>0.6 && d.W>=3 && d.H>=4 && fl>=4)){ if (d.coh>0.5 && d.cubes>=3) weak = d; d = null; } }
+      res({file:f, img:cv, det:d, weak, oy:0, ox:0, manual:false, warn:""});
+    };
+    img.onerror = () => res(null);
+    img.src = fr.result;
+  };
+  fr.onerror = () => res(null);
+  fr.readAsDataURL(f);
+});
+
+$("file").onchange = async e => {
+  let list = [...(e.target.files || [])]; if (!list.length) return;
+  const over = list.length > 4; list = list.slice(0,4);
+  status(`${list.length}枚を読み取り中…`, false, true);
+  const loaded = (await Promise.all(list.map(loadShot))).filter(Boolean);
+  e.target.value = "";
+  if (!loaded.length){ status("画像を開けませんでした。PNGかJPEGのスクショを選んでください。", true); return; }
+  shots = loaded; files = loaded.map(s=>s.file);
+  $("shotWrap").hidden = false;
+  remerge(over ? "5枚目以降は使っていません(はみ出る分は2で手入力してください)。" : "");
+};
+
+const GAME = `ゲーム画面の知識:
+- 「風来のシレン6」は斜め見下ろしの固定カメラ。ボヨヨン壁は1マスに1個の、青〜水色の中心にピンクのふちがあるゼリー状の立方体で、上面と手前の側面が見える。
+- 画面の下(手前)の行ほどマスが大きく、列は下にいくほど左右に広がる(遠近法)。
+- 一番奥の行の壁はHPバーなどのHUDに隠れ、手前の側面だけ見えることがある。
+- タッチ操作のボタン(L1/R1/A/B/X/Y、十字キー、+/−)、ミニマップ、雲、キャラクターがマスを半透明に隠すことがある。その下にあるブロックも見落とさないこと。
+- 部屋の出入口は壁の切れ目(床のマス)。部屋の外側(雲・岩・通路の外)は W。`;
+
+$("aiBtn").onclick = async () => {
+  if (!shots.length || !sample) return;
+  ctl = new AbortController();
+  $("aiBtn").disabled = true; $("stopBtn").hidden = false;
+  const failedShots = shots.filter(x=>!x.det && !x.ai);
+  const extend = synced() && failedShots.length > 0;
+  const review = synced() && !extend;
+  status(extend ? "Claudeが残りの写真の位置を推測中…(1分ほど)" : review ? "Claudeが見直し中…(30秒〜1分ほど)" : "Claudeが読み取り中…(30秒〜1分ほど)", false, true);
+  const hint = $("hint").value.trim();
+  try{
+    let data, images;
+    if (extend){
+      const used = shots.filter(x=>x.det);
+      const nNew = Math.max(1, Math.min(failedShots.length, imgCount-1));
+      const newShots = failedShots.slice(0, nNew);
+      const anns = await Promise.all(used.map(x=>new Promise(res => x.canvas.toBlob(res, "image/jpeg", 0.85))));
+      const known = anns.slice(0, Math.max(0, imgCount - nNew));
+      images = [...known, ...newShots.map(x=>x.file)];
+      const before = gridRows();
+      const kN = known.length;
+      const prompt = `「風来のシレン6」のボヨヨン壁の部屋を、何枚かに分けて撮ったスクリーンショットです。
+${kN ? `画像1〜${kN}: 読み取り済みの写真。部屋の部分を切り出し、盤面の座標で印を重ねてある(水色の輪=ボヨヨン壁、緑の点=床、赤い×=普通の壁・部屋の外。白い数字は左が行番号、上が列番号、1始まり)。\n` : ""}画像${kN+1}${newShots.length>1 ? `〜${images.length}` : ""}: まだ盤面に入っていない写真。
+読み取り済みの盤面(1行目から順に。B=ボヨヨン壁 .=床 W=壁・部屋の外 ~=水路 ^=空域):
+${before.join("\n")}
+
+${GAME}
+
+やること:
+1. 新しい写真に写っている壁と床をマス目単位で読む。
+2. 読み取り済みの盤面と重なっている部分を、ボヨヨン壁の並び・普通の壁の位置・出入口・角のへこみの形で突き合わせ、新しい写真が盤面のどこに当たるかを決める。カメラは常にシレンを中心に同じ角度なので、写真ごとに見えている範囲がずれているだけ。
+3. 新しい写真にしか写っていない部分を書き足して、盤面を広げる。既存の盤面のマスは、新しい写真ではっきり違うと分かる場合以外は変えない。
+4. 写真に写っていない場所は W にする。最大30×30。
+${hint ? "ユーザーからの補足: " + hint + "\n" : ""}
+JSONだけで答える:
+{"rows":["...","..."],"top":既存の盤面の上に足した行数,"left":既存の盤面の左に足した列数,"note":"どこでつなげたかと、自信がない点を日本語で1〜2文"}`;
+      data = await sample.json(prompt, {images, modelTier:"complex", signal:ctl.signal});
+      const rows = (data && Array.isArray(data.rows)) ? data.rows.map(String).filter(r=>r.length) : [];
+      const top = Math.max(0, Math.round(+data.top||0)), left = Math.max(0, Math.round(+data.left||0));
+      const nw = rows.length ? Math.max(...rows.map(r=>[...r].length)) : 0;
+      if (!rows.length || rows.length < H+top || nw < W+left || rows.length>30 || nw>30) throw {code:"bad_shape"};
+      // 既存部分がほとんど保たれているか確認
+      let same = 0, tot = 0;
+      before.forEach((r,y)=>[...r].forEach((ch,x)=>{ tot++; if (([...rows[y+top]][x+left] ?? "W") === ch) same++; }));
+      if (same < tot*0.8) throw {code:"bad_merge"};
+      const added = rows.length*nw - W*H;
+      for (const x of shots) if (x.det){ x.gy += top; x.gx += left; }
+      newShots.forEach(x=>x.ai = true);
+      applyRows(rows);
+      merged = {W, H, cubes: merged.cubes};
+      drawShot();
+      const left2 = shots.filter(x=>!x.det && !x.ai).length;
+      $("aiBtn").textContent = left2 ? "Claudeで残りをつなげる" : "Claudeで見直す";
+      status(`Claudeが${newShots.map(x=>shots.indexOf(x)+1).join("・")}枚目をつなげて、${W}×${H}マスに広げました(${added}マス追加)。` + (data.note ? "\n" + data.note : "") + "\nつなげた部分は推測なので、写真と見比べて違うマスはタップで直してください。" + (left2 ? `残り${left2}枚はもう一度ボタンを押すとつなげます。` : ""));
+    } else if (review){
+      const used = shots.filter(x=>x.det);
+      const anns = await Promise.all(used.map(x=>new Promise(res => x.canvas.toBlob(res, "image/jpeg", 0.9))));
+      const single = used.length===1 && imgCount>=2;
+      images = single ? [used[0].file, anns[0]] : anns.slice(0, imgCount);
+      const before = gridRows();
+      const prompt = `${single ? "画像1は「風来のシレン6」のボヨヨン壁の部屋のスクリーンショット、画像2はその部屋の部分を切り出して自動検出の結果を重ねたもの" : images.length>1 ? `画像は「風来のシレン6」のボヨヨン壁の部屋を${images.length}枚に分けて撮ったスクリーンショットで、それぞれに統合後の座標で自動検出の結果を重ねてある。同じ番号のマスは同じ場所` : "画像は「風来のシレン6」のボヨヨン壁の部屋のスクリーンショットに、自動検出の結果を重ねたもの"}です。
+重ねた印: 水色の輪=ボヨヨン壁、緑の点=床、赤い×=普通の壁・部屋の外。白い数字は左が行番号、上が列番号(1始まり)。
+自動検出の結果(1行目から順に。B=ボヨヨン壁 .=床 W=壁・部屋の外 ~=水路 ^=空域):
+${before.join("\n")}
+
+${GAME}
+
+やること: スクショを1マスずつ見て、自動検出が間違っているマスだけを直す。特にUI・雲・キャラに隠れたマスと、部屋のふちを確認する。確信が持てないマスは自動検出のままにする。行数・列数は変えない。
+${hint ? "ユーザーからの補足: " + hint + "\n" : ""}
+JSONだけで答える:
+{"rows":["...","..."],"changes":[{"row":行番号,"col":列番号,"to":"B"}],"note":"気になった点を日本語で1文(なければ空文字)"}`;
+      data = await sample.json(prompt, {images, modelTier:"complex", signal:ctl.signal});
+      const rows = (data && Array.isArray(data.rows)) ? data.rows.map(String) : [];
+      if (rows.length !== H || rows.some(r=>[...r].length !== W)) throw {code:"bad_shape"};
+      const diff = [];
+      rows.forEach((r,y)=>[...r].forEach((ch,x)=>{ const k=FROM_CH[ch] ?? ""; if (k!==cells[y*W+x]) diff.push(`(${x+1}, ${y+1}) ${NAME[cells[y*W+x]]}→${NAME[k]}`); }));
+      applyRows(rows);
+      status(diff.length ? `Claudeが${diff.length}マス直しました: ${diff.join("、")}` + (data.note ? "\n" + data.note : "") : "Claudeの見直しでも違いは見つかりませんでした。" + (data.note ? "\n" + data.note : ""));
+    } else {
+      const prompt = `これは「風来のシレン6」のスクリーンショット、またはその部屋を方眼で再現した画像です。部屋の「ボヨヨン壁」の配置をマス目単位で読み取ってください。
+
+${GAME}
+
+出力ルール:
+- 部屋の床と、それを囲む壁が全部入る最小の長方形を、上の行から1行1文字列で表す。全行の文字数をそろえる。最大30×30。
+- 文字: B=ボヨヨン壁, W=普通の壁・部屋の外, .=床(キャラ・アイテム・罠がいるマスも床), ~=水路, ^=空域
+- まず各行のボヨヨン壁の数と位置を数え、床タイルの継ぎ目と立方体の列がそろうように対応させること。
+${hint ? "- ユーザーからの補足: " + hint + "\n" : ""}
+JSONだけで答える: {"rows":["BBBBBB","B....B","BBBBBB"],"note":"自信がない箇所を日本語で1文"}`;
+      const all = shots.slice(0, imgCount).map(x=>x.file);
+      const p2 = all.length>1 ? prompt.replace("これは「風来のシレン6」のスクリーンショット、またはその部屋を方眼で再現した画像です。", `これは「風来のシレン6」の1つの部屋を${all.length}枚に分けて撮ったスクリーンショットです。写真どうしの重なりを壁の並びや出入口の形で突き合わせ、1つの盤面にまとめてください。`) : prompt;
+      data = await sample.json(p2, {images: all.length>1 ? all : all[0], modelTier:"complex", signal:ctl.signal});
+      const rows = (data && Array.isArray(data.rows)) ? data.rows.map(String).filter(r=>r.length) : [];
+      if (!rows.length) throw {code:"bad_shape"};
+      merged = null; applyRows(rows);
+      status(`${W}×${H}マスで読み取りました。スクショと見比べて、違うマスはタップで直してください。` + (data.note ? "\n" + data.note : ""));
+    }
+  }catch(e){
+    const code = e && e.code;
+    const msg = {
+      cancelled:"中止しました。",
+      not_granted:"Claudeの利用が許可されなかったため使えません。2で手入力してください。",
+      rate_limited:"利用上限に達しました。少し時間をおいてもう一度押してください。",
+      image_rejected:"この画像は送れません。PNGかJPEGのスクショを選んでください。",
+      invalid_json:"結果を解釈できませんでした。もう一度押してください。",
+      bad_shape:"Claudeの結果がマス目の形になっていませんでした。もう一度押してください。",
+      bad_merge:"Claudeのつなげ方が読み取り済みの部分と合いませんでした。もう一度押すか、補足欄に「2枚目は右側」のように位置を書いて押してください。",
+      refused:"この画像は読み取れませんでした。別のスクショを選んでください。",
+    }[code] || "通信に失敗しました。もう一度押してください。";
+    status(msg, code !== "cancelled");
+    if (["not_granted","sampling_disabled","images_unavailable","capability_disabled","not_declared"].includes(code)) { sample = null; $("aiBox").hidden = true; }
+  }finally{
+    $("aiBtn").disabled = false; $("stopBtn").hidden = true;
+  }
+};
+$("stopBtn").onclick = () => ctl && ctl.abort();
+
+/* ---------- init ---------- */
+if (!load()) defaultRoom();
+buildBrushes(); buildBoard(); run();
+
+(async () => {
+  try{
+    const s = null;
+    const lim = s ? await s.limits().catch(()=>null) : null;
+    if (s && lim && lim.images){ sample = s; imgCount = lim.images.maxCount || 1; if (shots.length) $("aiBox").hidden = false; }
+  }catch(e){}
+})();
+})();
+</script>
+
+<script>
+(() => {
+"use strict";
+const $ = id => document.getElementById(id);
+/* ---------- タブ ---------- */
+function showTab(t){
+  const boyo = t !== "price";
+  $("tabBoyo").hidden = !boyo; $("tabPrice").hidden = boyo;
+  $("tabBtnBoyo").setAttribute("aria-selected", boyo); $("tabBtnPrice").setAttribute("aria-selected", !boyo);
+  try{ localStorage.setItem("shiren-tab", t); }catch(e){}
+  if (location.hash !== "#"+t) history.replaceState(null, "", "#"+t);
+}
+$("tabBtnBoyo").onclick = () => showTab("boyo");
+$("tabBtnPrice").onclick = () => showTab("price");
+let first = location.hash.slice(1);
+if (first !== "price" && first !== "boyo"){ try{ first = localStorage.getItem("shiren-tab") || "boyo"; }catch(e){ first = "boyo"; } }
+showTab(first);
+
+/* ---------- 値段データ(とぐろ島探検録Wiki 値段一覧表より) ---------- */
+// [買値, 売値, [名前...]]
+const KUSA = [
+  [10,4,["雑草"]],[40,10,["薬草"]],[50,20,["毒草","暴走の種"]],
+  [70,25,["混乱草","睡眠草","目つぶし草","めぐすり草","すばやさ草","パワーアップ草"]],
+  [80,30,["弟切草"]],[100,40,["高飛び草","くねくね草"]],
+  [200,80,["いやし草","かぐわし草","胃拡張の種","胃縮小の種"]],[250,100,["ドラゴン草"]],
+  [400,160,["復活の草","無敵草","不幸の種"]],[500,200,["命の草"]],[600,240,["毒消し草"]],
+  [700,280,["ちからの草"]],[1000,400,["しあわせ草"]],[2000,800,["天使の種","超不幸の種"]],
+];
+const MAKI = [
+  [200,["ぬれた巻物"]],
+  [300,["混乱の巻物","バクスイの巻物","ゾワゾワの巻物","真空斬りの巻物","識別の巻物","銀封印の巻物","生物集合の巻物","道具寄せの巻物","困った時の巻物"]],
+  [400,["天の恵みの巻物","地の恵みの巻物","メッキの巻物","印増大の巻物","印消しの巻物","おにぎりの巻物"]],
+  [600,["おはらいの巻物","あかりの巻物","迷子の巻物","罠消しの巻物"]],
+  [1000,["銀はがしの巻物","壺増大の巻物","吸い出しの巻物","呪いの巻物","罠の巻物","水がれの巻物","魔物部屋の巻物","大部屋の巻物","バクチの巻物","くちなしの巻物","拾えずの巻物","敵加速の巻物","脱出の巻物","聖域の巻物","白紙の巻物"]],
+  [3000,["全滅の巻物"]],[10000,["ねだやしの巻物"]],
+].map(([b,n])=>[b,b*0.4,n]);
+const UDE = [
+  [1500,["遠投の腕輪","ヘタ投げの腕輪","ボヨヨンの腕輪","連射の腕輪","諸刃の腕輪","痛恨の腕輪","高飛びの腕輪","爆発の腕輪","垂れ流しの腕輪","金垂れ流しの腕輪","罠増しの腕輪"]],
+  [2000,["ちからの腕輪"]],
+  [2500,["睡眠よけの腕輪","気配察知の腕輪","道具感知の腕輪","大砲強化の腕輪"]],
+  [3000,["呪いよけの腕輪","水グモの腕輪","浮遊の腕輪","魔物呼びの腕輪"]],
+  [3500,["胃拡張の腕輪","胃縮小の腕輪","弾きよけの腕輪","値切りの腕輪"]],
+  [4000,["しあわせの腕輪","混乱よけの腕輪"]],
+  [5000,["回復の腕輪","錆よけの腕輪","透視の腕輪","裏道の腕輪","すれちがいの腕輪"]],
+  [6500,["毒消しの腕輪","壁抜けの腕輪","忍び足の腕輪"]],
+  [7500,["罠師の腕輪","鑑定師の腕輪"]],[15000,["百発百中の腕輪"]],
+].map(([b,n])=>[b,b*0.4,n]);
+// 杖・壺: [基本の買値, [名前...]] 回数(容量)×100が足される
+const TSUE = [
+  [500,["ただの杖","吹き飛ばしの杖","場所がえの杖","飛びつきの杖","転ばぬ先の杖","かなしばりの杖","封印の杖","感電の杖"]],
+  [700,["トンネルの杖","土塊の杖","鈍足の杖","加速の杖","導きの杖"]],
+  [1000,["痛み分けの杖","ガイコツまどうの杖","一時しのぎの杖","幸せの杖","不幸の杖"]],
+  [2000,["身代わりの杖","桃まんの杖"]],
+];
+const TSUBO = [
+  [800,["保存の壺","識別の壺","変化の壺","ただの壺","やりすごしの壺"]],
+  [1000,["換金の壺","手封じの壺","割れない壺","倉庫の壺","底抜けの壺"]],
+  [1600,["おはらいの壺","呪いの壺"]],
+  [2000,["背中の壺","トドの壺","水鉄砲の壺","魔物の壺","ビックリの壺","笑いの壺"]],
+  [6000,["合成の壺"]],[10000,["強化の壺","弱化の壺"]],
+];
+const ALWAYS_CURSED = new Set(["胃縮小の腕輪","垂れ流しの腕輪","金垂れ流しの腕輪"]);
+const WARN = {
+  "爆発の腕輪":"店の中で装備して識別すると、商品を爆破して泥棒扱いになることがあります。",
+  "高飛びの腕輪":"店の中で装備して識別すると、高飛びして泥棒扱いになることがあります。",
+  "高飛び草":"買う前に飲むと高飛びして泥棒扱いになることがあります。",
+  "暴走の種":"買う前に飲むと店主と敵対することがあります。",
+  "くちなしの巻物":"買う前に読むと精算できなくなり、泥棒扱いになることがあります。",
+  "魔物部屋の巻物":"買う前に読むと泥棒扱いになることがあります。",
+};
+const CATS = [
+  {k:"kusa", name:"草・種"}, {k:"maki", name:"巻物"}, {k:"ude", name:"腕輪"}, {k:"tsue", name:"杖"}, {k:"tsubo", name:"壺"},
+];
+const flat = {kusa:KUSA, maki:MAKI, ude:UDE};
+const ST = [{k:"n",name:"通常",f:1},{k:"c",name:"呪い",f:0.87},{k:"b",name:"祝福",f:2}];
+const adj = (v, st) => Math.floor(v*st.f + 1e-9);
+
+let mode = "buy", cats = new Set(["kusa"]), refCat = "kusa", known = new Set();
+try{
+  const d = JSON.parse(localStorage.getItem("shiren-price") || "null");
+  if (d){ mode = d.mode==="sell"?"sell":"buy"; if (Array.isArray(d.cats) && d.cats.length===1) cats = new Set(d.cats); if (Array.isArray(d.known)) known = new Set(d.known);
+    if (typeof d.curse==="boolean") $("incCurse").checked = d.curse; if (typeof d.bless==="boolean") $("incBless").checked = d.bless; if (d.refCat) refCat = d.refCat; }
+}catch(e){}
+const savePrice = () => { try{ localStorage.setItem("shiren-price", JSON.stringify({mode, cats:[...cats], known:[...known], curse:$("incCurse").checked, bless:$("incBless").checked, refCat})); }catch(e){} };
+
+// 値段 → 候補
+function lookup(P){
+  const out = []; // {cat, st, label, names}
+  const sts = ST.filter(s => s.k==="n" || (s.k==="c" && $("incCurse").checked) || (s.k==="b" && $("incBless").checked));
+  for (const c of CATS){
+    if (!cats.has(c.k)) continue;
+    if (flat[c.k]){
+      for (const [b, sv, names] of flat[c.k]) for (const st of sts){
+        if (adj(mode==="buy"?b:sv, st) !== P) continue;
+        const ns = names.filter(n => st.k==="c" || !ALWAYS_CURSED.has(n));
+        if (ns.length) out.push({cat:c, st, label:`${b}ギタン族`, names:ns});
+      }
+    } else {
+      const tbl = c.k==="tsue" ? TSUE : TSUBO, unit = c.k==="tsue" ? "回数" : "容量", max = c.k==="tsue" ? 99 : 6;
+      for (const [b, names] of tbl) for (const st of sts) for (let n=0;n<=max;n++){
+        const v = mode==="buy" ? b + 100*n : b*0.4 + 40*n;
+        if (adj(v, st) === P) out.push({cat:c, st, label:`${b}ギタン族・${unit}${n}`, names, n});
+      }
+    }
+  }
+  return out;
+}
+
+function itemBtn(name){
+  const b = document.createElement("button"); b.type="button"; b.className = "item" + (known.has(name) ? " known" : "");
+  b.textContent = name; b.setAttribute("aria-pressed", known.has(name));
+  b.onclick = () => { known.has(name) ? known.delete(name) : known.add(name); savePrice(); renderPrice(); renderRef(); };
+  return b;
+}
+
+function renderPrice(){
+  const out = $("priceOut"); out.innerHTML = "";
+  const raw = $("priceIn").value.replace(/[^0-9]/g,"");
+  if (!raw){ const p=document.createElement("p"); p.className="hint"; p.textContent = mode==="buy" ? "店の商品に付いている値段を入れてください。" : "店主が買い取ると言った値段を入れてください。"; out.append(p); return; }
+  const P = +raw, hits = lookup(P);
+  const head = document.createElement("div"); head.className = "summary"; head.style.marginTop = "14px";
+  const cand = new Set(); hits.forEach(h=>h.names.forEach(n=>{ if (!known.has(n)) cand.add(n); }));
+  head.textContent = hits.length ? `${P}ギタン(${mode==="buy"?"買う値段":"売る値段"}): 候補 ${cand.size}種` : `${P}ギタンに当てはまるアイテムはありません`;
+  out.append(head);
+  if (!hits.length){
+    const p=document.createElement("p"); p.className="hint";
+    p.textContent = "「店で買う値段/店に売る値段」の切り替え、種類の選択、呪い・祝福のチェックを確かめてください。武器・盾とお香は対象外です。";
+    out.append(p); return;
+  }
+  if (cand.size === 1){ const p=document.createElement("p"); p.className="warn"; p.style.color="inherit"; p.style.fontWeight="700"; p.textContent = `→ ${[...cand][0]} で確定です。`; out.append(p); }
+  const warns = new Set();
+  for (const h of hits){
+    const g = document.createElement("div"); g.className = "pgroup";
+    const h3 = document.createElement("h3");
+    const tag = document.createElement("span"); tag.className = "tag" + (h.st.k==="c"?" cur":h.st.k==="b"?" bls":""); tag.textContent = h.st.name;
+    h3.append(document.createTextNode(h.cat.name+" "), tag, document.createTextNode(" " + h.label));
+    const it = document.createElement("div"); it.className = "items";
+    h.names.forEach(n => { it.append(itemBtn(n)); if (WARN[n] && !known.has(n)) warns.add(n); });
+    g.append(h3, it);
+    if (h.st.k==="c"){ const al = h.names.filter(n=>ALWAYS_CURSED.has(n)); if (al.length){ const p=document.createElement("p"); p.className="hint"; p.textContent = `${al.join("・")}は最初から呪われて出ます。`; g.append(p);} }
+    out.append(g);
+  }
+  if (hits.some(h=>h.n!==undefined)){
+    const p=document.createElement("p"); p.className="hint"; p.textContent="杖の回数・壺の容量は店に並んだ時点のものです。杖は買値500族と700族のように、回数違いで同じ値段になる組み合わせがあります。"; out.append(p);
+  }
+  for (const n of warns){ const p=document.createElement("p"); p.className="warn"; p.textContent = `⚠ ${n}: ${WARN[n]}`; out.append(p); }
+}
+
+function renderChips(){
+  const box = $("cats"); box.innerHTML = "";
+  for (const c of CATS){
+    const b = document.createElement("button"); b.type="button"; b.className="chip"; b.textContent=c.name;
+    b.setAttribute("aria-pressed", cats.has(c.k));
+    b.onclick = () => { cats = new Set([c.k]); savePrice(); renderChips(); renderPrice(); };
+    box.append(b);
+  }
+  $("modeBuy").setAttribute("aria-pressed", mode==="buy"); $("modeSell").setAttribute("aria-pressed", mode==="sell");
+}
+
+function renderRef(){
+  const box = $("refCats"); box.innerHTML = "";
+  for (const c of CATS){
+    const b = document.createElement("button"); b.type="button"; b.className="chip"; b.textContent=c.name;
+    b.setAttribute("aria-pressed", refCat===c.k);
+    b.onclick = () => { refCat = c.k; savePrice(); renderRef(); };
+    box.append(b);
+  }
+  const out = $("refOut"); out.innerHTML = "";
+  const t = document.createElement("table"); t.className = "ref";
+  const ext = refCat==="tsue" || refCat==="tsubo";
+  t.innerHTML = `<thead><tr><th class="n" style="text-align:right">買う</th><th class="n" style="text-align:right">売る</th><th>${ext ? (refCat==="tsue"?"(+回数×100 / ×40)":"(+容量×100 / ×40)") : "アイテム"}</th></tr></thead>`;
+  const tb = document.createElement("tbody");
+  const rows = flat[refCat] || (refCat==="tsue" ? TSUE : TSUBO).map(([b,n])=>[b,b*0.4,n]);
+  for (const [b, sv, names] of rows){
+    const tr = document.createElement("tr");
+    const c1 = document.createElement("td"); c1.className="n"; c1.textContent = b + (ext?"+":"");
+    const c2 = document.createElement("td"); c2.className="n"; c2.textContent = sv + (ext?"+":"");
+    const c3 = document.createElement("td"); const it = document.createElement("div"); it.className="items";
+    names.forEach(n=>it.append(itemBtn(n))); c3.append(it);
+    tr.append(c1,c2,c3); tb.append(tr);
+  }
+  t.append(tb); out.append(t);
+}
+
+$("modeBuy").onclick = () => { mode="buy"; savePrice(); renderChips(); renderPrice(); };
+$("modeSell").onclick = () => { mode="sell"; savePrice(); renderChips(); renderPrice(); };
+$("priceIn").oninput = renderPrice;
+$("incCurse").onchange = () => { savePrice(); renderPrice(); };
+$("incBless").onchange = () => { savePrice(); renderPrice(); };
+$("resetKnown").onclick = () => { known.clear(); savePrice(); renderPrice(); renderRef(); };
+renderChips(); renderPrice(); renderRef();
+})();
+</script>
+</body>
+</html>
