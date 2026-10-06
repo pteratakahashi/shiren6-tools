@@ -269,10 +269,13 @@ const get = (x,y) => (x<0||y<0||x>=W||y>=H) ? undefined : cells[y*W+x];
 const isWall = v => v === "kabe";
 const isRefl = v => v === "boyo" || (isWall(v) && bangle);
 
+// 反射の描画用: 斜めに進んで壁にぶつかる点(マスの角)。線がすべて45°になり、斜め投げだと分かる
+const hit = (now, vec) => ({x: now.x+0.5+vec.x*0.5, y: now.y+0.5+vec.y*0.5});
+
 function calc(sx, sy, vx, vy){
   const vec = {x:vx, y:vy};
   let now = {x:sx, y:sy}, cnt = 0, distance = 0, out = false;
-  const dirs = [], bounds = [], path = [{x:sx,y:sy}];
+  const dirs = [], bounds = [], path = [{x:sx,y:sy}], line = [{x:sx+0.5,y:sy+0.5}];
   while (1000 > cnt++){
     const next = {x: now.x+vec.x, y: now.y+vec.y};
     let stop = false;
@@ -285,12 +288,12 @@ function calc(sx, sy, vx, vy){
     if (!stop && r.front){
       if ((r.vertical && r.horizontal) || (!r.vertical && !r.horizontal)) stop = true;
       if (!g.vertical && r.horizontal){
-        distance = 0; bounds.push({x:now.x,y:now.y});
+        distance = 0; { const h = hit(now, vec); bounds.push({x:now.x, y:now.y, h}); line.push(h); }
         const d = vec.x===1 ? "right" : "left";
         if (!dirs.includes(d) && g.front==="boyo") dirs.push(d);
         vec.x *= -1; next.x = now.x;
       } else if (g.vertical && !r.horizontal){
-        distance = 0; bounds.push({x:now.x,y:now.y});
+        distance = 0; { const h = hit(now, vec); bounds.push({x:now.x, y:now.y, h}); line.push(h); }
         const d = vec.y===1 ? "down" : "up";
         if (!dirs.includes(d) && g.front==="boyo") dirs.push(d);
         vec.y *= -1; next.y = now.y;
@@ -298,12 +301,12 @@ function calc(sx, sy, vx, vy){
     }
     if (stop){
       if (dirs.length === 4){
-        return {sx, sy, vx, vy, bounds, path, end:{x:now.x,y:now.y},
+        return {sx, sy, vx, vy, bounds, path, line, end:{x:now.x,y:now.y},
                 endFlag: isWall(g.front) ? "kabe" : (out ? "out" : "")};
       }
       return null;
     }
-    now = next; distance++; path.push({x:now.x,y:now.y});
+    now = next; distance++; path.push({x:now.x,y:now.y}); line.push({x:now.x+0.5,y:now.y+0.5});
   }
   return null;
 }
@@ -418,8 +421,8 @@ function renderResults(){
     box.innerHTML = `<p class="none">配置の読み違いがないか、2のマスをもう一度見比べてください。本当にこの形なら増殖できない部屋です${bangle?"":"(ボヨヨンの腕輪があれば変わる場合があります)"}。</p>`;
     return;
   }
-  $("resultHead").textContent = `${results.length}通りの投げ方が見つかりました`;
-  const LIMIT = 8;
+  $("resultHead").textContent = "";
+  const LIMIT = 1;
   results.forEach((g, idx) => {
     if (!showAll && idx >= LIMIT && idx !== selected) return;
     const m = g.main, k = m.vx+","+m.vy;
@@ -434,12 +437,6 @@ function renderResults(){
     b.onclick = () => { selected = idx; renderResults(); drawRoute(); gridEl.scrollIntoView({behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block:"center"}); };
     box.append(b);
   });
-  if (!showAll && results.length > LIMIT){
-    const more = document.createElement("button"); more.type="button"; more.className="ghost";
-    more.textContent = `残り${results.length-LIMIT}通りも表示`;
-    more.onclick = () => { showAll = true; renderResults(); };
-    box.append(more);
-  }
 }
 
 function drawRoute(){
@@ -450,7 +447,7 @@ function drawRoute(){
   for (const s of g.starts.slice(1)) gridEl.children[s.sy*W+s.sx].classList.add("cand");
   gridEl.children[m.sy*W+m.sx].classList.add("start");
   const ns = "http://www.w3.org/2000/svg";
-  const pts = m.path.map(p => `${p.x+0.5},${p.y+0.5}`).join(" ");
+  const pts = m.line.map(p => `${p.x},${p.y}`).join(" ");
   const pl = document.createElementNS(ns,"polyline");
   pl.setAttribute("points", pts);
   pl.setAttribute("fill","none"); pl.setAttribute("stroke","var(--path)");
@@ -459,7 +456,7 @@ function drawRoute(){
   overlay.append(pl);
   m.bounds.forEach((b, i) => {
     const t = document.createElementNS(ns,"text");
-    t.setAttribute("x", b.x+0.5); t.setAttribute("y", b.y+0.5);
+    t.setAttribute("x", b.h.x); t.setAttribute("y", b.h.y);
     t.setAttribute("font-size","0.42"); t.setAttribute("text-anchor","middle"); t.setAttribute("dominant-baseline","central");
     t.setAttribute("fill","var(--ink)"); t.setAttribute("font-weight","700");
     t.setAttribute("paint-order","stroke"); t.setAttribute("stroke","var(--panel)"); t.setAttribute("stroke-width","0.12");
@@ -469,6 +466,13 @@ function drawRoute(){
   const e = m.end, x = document.createElementNS(ns,"circle");
   x.setAttribute("cx", e.x+0.5); x.setAttribute("cy", e.y+0.5); x.setAttribute("r","0.16"); x.setAttribute("fill","var(--path)");
   overlay.append(x);
+  // 投げる向きの矢印(スタートのマスの中に収め、反射の番号とかぶらないようにする)
+  const dx = m.vx/Math.SQRT2, dy = m.vy/Math.SQRT2, cx = m.sx+0.5, cy = m.sy+0.5;
+  const at = (a, b) => `${cx+dx*a-dy*b},${cy+dy*a+dx*b}`;
+  const ah = document.createElementNS(ns,"polygon");
+  ah.setAttribute("points", [at(-0.36,-0.08), at(0.06,-0.08), at(0.06,-0.24), at(0.4,0), at(0.06,0.24), at(0.06,0.08), at(-0.36,0.08)].join(" "));
+  ah.setAttribute("fill","var(--start)"); ah.setAttribute("stroke","#fff"); ah.setAttribute("stroke-width","0.07"); ah.setAttribute("stroke-linejoin","round");
+  overlay.append(ah);
 }
 
 /* ---------- resize / controls ---------- */
