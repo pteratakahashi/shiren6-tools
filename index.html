@@ -88,6 +88,10 @@ textarea{font:inherit;font-size:14px;width:100%;border:1px solid var(--line);bac
 .status{font-size:14px;color:var(--sub);margin-top:10px;white-space:pre-wrap}
 .status.err{color:var(--accent)}
 .hint{font-size:13px;color:var(--sub);margin:8px 0 0}
+kbd{font:inherit;font-size:12px;border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 4px;background:var(--panel)}
+.pchint{display:none}
+@media (hover:hover) and (pointer:fine){.pchint{display:block}}
+body.dragging #readSec{outline:3px dashed var(--accent);outline-offset:4px;border-radius:12px}
 .size input{width:56px;font:inherit;padding:8px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--ink);text-align:center}
 .brushes{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin:12px 0}
 .brush{background:var(--bg);color:var(--ink);border:2px solid transparent;padding:6px 2px;font-size:12px;display:flex;flex-direction:column;align-items:center;gap:4px;min-height:56px}
@@ -161,6 +165,7 @@ footer{font-size:12px;color:var(--sub);margin-top:24px;line-height:1.7}
   <section id="readSec">
     <h2><b>1</b>スクショを読み取る</h2>
     <label class="filebtn">スクショを選ぶ(4枚まで)<input id="file" type="file" multiple accept="image/png,image/jpeg,image/webp,image/gif"></label>
+    <p class="hint pchint">PCなら <kbd>Ctrl</kbd>+<kbd>V</kbd> でスクショを貼り付け、または画像をこのページにドラッグ&amp;ドロップでも読み取れます。</p>
     <div class="shotwrap" id="shotWrap" hidden>
       <div id="shots"></div>
       <div class="legend"><span><i class="lg-b"></i>ボヨヨン</span><span><i class="lg-f"></i>床</span><span><i class="lg-w"></i>壁・部屋の外</span></div>
@@ -843,17 +848,36 @@ const loadShot = f => new Promise(res => {
   fr.readAsDataURL(f);
 });
 
-$("file").onchange = async e => {
-  let list = [...(e.target.files || [])]; if (!list.length) return;
+const readShots = async list => {
+  list = list.filter(f => f && /^image\//.test(f.type)); if (!list.length) return false;
+  if ($("tabBoyo").hidden) $("tabBtnBoyo").click();
   const over = list.length > 4; list = list.slice(0,4);
   status(`${list.length}枚を読み取り中…`, false, true);
   const loaded = (await Promise.all(list.map(loadShot))).filter(Boolean);
-  e.target.value = "";
   if (!loaded.length){ status("画像を開けませんでした。PNGかJPEGのスクショを選んでください。", true); return; }
   shots = loaded; files = loaded.map(s=>s.file);
   $("shotWrap").hidden = false;
   remerge(over ? "5枚目以降は使っていません(はみ出る分は2で手入力してください)。" : "");
+  return true;
 };
+$("file").onchange = async e => { const list = [...(e.target.files || [])]; e.target.value = ""; await readShots(list); };
+
+/* PC: Ctrl+V で貼り付け / ドラッグ&ドロップ */
+document.addEventListener("paste", e => {
+  const t = e.target;
+  if (t && (t.tagName === "TEXTAREA" || (t.tagName === "INPUT" && t.type !== "file" && t.type !== "checkbox"))) return;
+  const list = [...((e.clipboardData && e.clipboardData.items) || [])].filter(it => it.kind === "file").map(it => it.getAsFile());
+  if (list.some(f => f && /^image\//.test(f.type))){ e.preventDefault(); readShots(list); }
+});
+let dragDepth = 0;
+const hasFiles = e => e.dataTransfer && [...e.dataTransfer.types].includes("Files");
+document.addEventListener("dragenter", e => { if (!hasFiles(e)) return; e.preventDefault(); dragDepth++; document.body.classList.add("dragging"); });
+document.addEventListener("dragover", e => { if (hasFiles(e)){ e.preventDefault(); e.dataTransfer.dropEffect = "copy"; } });
+document.addEventListener("dragleave", e => { if (!hasFiles(e)) return; if (--dragDepth <= 0){ dragDepth = 0; document.body.classList.remove("dragging"); } });
+document.addEventListener("drop", e => {
+  if (!hasFiles(e)) return; e.preventDefault(); dragDepth = 0; document.body.classList.remove("dragging");
+  readShots([...e.dataTransfer.files]).then(ok => { if (!ok) status("画像ファイルをドロップしてください。", true); });
+});
 
 const GAME = `ゲーム画面の知識:
 - 「風来のシレン6」は斜め見下ろしの固定カメラ。ボヨヨン壁は1マスに1個の、青〜水色の中心にピンクのふちがあるゼリー状の立方体で、上面と手前の側面が見える。
