@@ -77,6 +77,10 @@ button:focus-visible,.filebtn:focus-within,input:focus-visible{outline:3px solid
 .shot{margin-bottom:12px}
 .shot .cap{display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--sub);margin-bottom:4px;gap:6px;flex-wrap:wrap}
 .nudge{display:flex;gap:4px}
+.shot .tools{display:flex;gap:6px;align-items:center;margin-left:auto}
+.shot .del{min-height:36px;padding:4px 10px;font-size:13px}
+.shotbar{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13px;color:var(--sub);margin-bottom:8px}
+.shotbar button{min-height:36px;padding:4px 10px;font-size:13px}
 .nudge button{min-height:36px;min-width:40px;padding:4px 8px;font-size:15px}
 .shotwrap canvas{width:100%;height:auto;display:block;border-radius:8px;border:1px solid var(--line)}
 .legend{display:flex;gap:14px;font-size:12px;color:var(--sub);margin-top:6px;flex-wrap:wrap}
@@ -164,9 +168,10 @@ footer{font-size:12px;color:var(--sub);margin-top:24px;line-height:1.7}
 
   <section id="readSec">
     <h2><b>1</b>スクショを読み取る</h2>
-    <label class="filebtn">スクショを選ぶ(4枚まで)<input id="file" type="file" multiple accept="image/png,image/jpeg,image/webp,image/gif"></label>
-    <p class="hint pchint">PCなら <kbd>Ctrl</kbd>+<kbd>V</kbd> でスクショを貼り付け、または画像をこのページにドラッグ&amp;ドロップでも読み取れます。</p>
+    <label class="filebtn">スクショを選ぶ<input id="file" type="file" multiple accept="image/png,image/jpeg,image/webp,image/gif"></label>
+    <p class="hint pchint">PCなら <kbd>Ctrl</kbd>+<kbd>V</kbd> でスクショを貼り付け、または画像をこのページにドラッグ&amp;ドロップでも読み取れます。続けて貼ると2枚目、3枚目…と追加されます。</p>
     <div class="shotwrap" id="shotWrap" hidden>
+      <div class="shotbar"><span id="shotCount"></span><button type="button" class="ghost" id="clearShots">画像をすべて消す</button></div>
       <div id="shots"></div>
       <div class="legend"><span><i class="lg-b"></i>ボヨヨン</span><span><i class="lg-f"></i>床</span><span><i class="lg-w"></i>壁・部屋の外</span></div>
     </div>
@@ -175,7 +180,7 @@ footer{font-size:12px;color:var(--sub);margin-top:24px;line-height:1.7}
       <textarea id="hint" rows="2" placeholder="Claudeへの補足(任意) 例: 左下はキャラに隠れているけどボヨヨン"></textarea>
       <div class="row"><button id="aiBtn">Claudeで見直す</button><button id="stopBtn" class="ghost" hidden>中止</button></div>
     </div>
-    <p class="hint">部屋が1枚に収まらないときは、重なりを2〜3行ずつ持たせて最大4枚まで分けて撮り、まとめて選んでください。重なった部分は自動でまとめます。読み取った印がスクショのマスとずれていないか、上の画像で確認してください。</p>
+    <p class="hint">部屋が1枚に収まらないときは、重なりを2〜3行ずつ持たせて最大8枚まで分けて撮り、1枚ずつ貼り付けるか、まとめて選んでください。重なった部分は自動でまとめます。読み取った印がスクショのマスとずれていないか、上の画像で確認してください。</p>
   </section>
 
   <section>
@@ -643,6 +648,7 @@ function detectBoyo(px, W0, H0){
 }
 
 let sample = null, files = [], ctl = null, shots = [], merged = null, imgCount = 1;
+const MAX_SHOTS = 8;
 const status = (msg, err=false, busy=false) => {
   const s = $("status"); s.className = "status" + (err ? " err" : "");
   s.innerHTML = busy ? '<span class="spin"></span>' : ""; s.append(document.createTextNode(msg));
@@ -771,22 +777,27 @@ function drawShot(){
 function buildShots(){
   const box=$("shots"); box.innerHTML="";
   const multi = shots.length > 1;
+  $("shotCount").textContent = `${shots.length}枚` + (shots.length < MAX_SHOTS ? "" : "(上限です)");
   shots.forEach((s,i)=>{
     const wrap=document.createElement("div"); wrap.className="shot";
-    if (multi){
+    {
       const cap=document.createElement("div"); cap.className="cap";
       const t=document.createElement("span");
       t.textContent = `${i+1}枚目` + (!s.det ? "(自動検出できず)" : s.warn ? `:${s.warn}` : "");
       cap.append(t);
-      if (s.det && (s.oy!==0 || s.ox!==0 || s.manual || s.warn)){
+      const tools=document.createElement("div"); tools.className="tools";
+      const del=document.createElement("button"); del.type="button"; del.className="ghost del"; del.textContent="✕ 削除"; del.setAttribute("aria-label",`${i+1}枚目を削除`);
+      del.onclick=()=>removeShot(i);
+      if (multi && s.det && (s.oy!==0 || s.ox!==0 || s.manual || s.warn)){
         const nd=document.createElement("div"); nd.className="nudge";
         for (const [lab,dy,dx,aria] of [["←",0,-1,"左へ1マス"],["→",0,1,"右へ1マス"],["↑",-1,0,"上へ1マス"],["↓",1,0,"下へ1マス"]]){
           const b=document.createElement("button"); b.type="button"; b.className="ghost"; b.textContent=lab; b.setAttribute("aria-label",`${i+1}枚目を${aria}ずらす`);
           b.onclick=()=>{ s.oy+=dy; s.ox+=dx; s.manual=true; remerge(`${i+1}枚目の位置をずらしました。`); };
           nd.append(b);
         }
-        cap.append(nd);
+        tools.append(nd);
       }
+      tools.append(del); cap.append(tools);
       wrap.append(cap);
     }
     s.canvas=document.createElement("canvas"); wrap.append(s.canvas);
@@ -819,8 +830,8 @@ function remerge(prefix=""){
     status(msg);
   } else {
     $("aiBtn").textContent = "Claudeで読み取る";
-    status(sample ? (shots.length===1 ? "自動ではマス目を検出できませんでした。「Claudeで読み取る」を押してください。" : "どの写真からも自動でマス目を検出できませんでした。「Claudeで読み取る」を押すと、全部の写真から1つの盤面を作ります。")
-                  : "自動ではマス目を検出できませんでした。2で手入力してください。", !sample);
+    status(msg + (sample ? (shots.length===1 ? "自動ではマス目を検出できませんでした。「Claudeで読み取る」を押してください。" : "どの写真からも自動でマス目を検出できませんでした。「Claudeで読み取る」を押すと、全部の写真から1つの盤面を作ります。")
+                  : "自動ではマス目を検出できませんでした。2で手入力してください。"), !sample);
   }
   $("aiBox").hidden = !sample;
 }
@@ -851,15 +862,30 @@ const loadShot = f => new Promise(res => {
 const readShots = async list => {
   list = list.filter(f => f && /^image\//.test(f.type)); if (!list.length) return false;
   if ($("tabBoyo").hidden) $("tabBtnBoyo").click();
-  const over = list.length > 4; list = list.slice(0,4);
+  const room = MAX_SHOTS - shots.length;
+  if (room <= 0){ status(`画像は${MAX_SHOTS}枚までです。いらない画像を「✕ 削除」してから追加してください。`, true); return true; }
+  const over = list.length > room; list = list.slice(0, room);
   status(`${list.length}枚を読み取り中…`, false, true);
   const loaded = (await Promise.all(list.map(loadShot))).filter(Boolean);
-  if (!loaded.length){ status("画像を開けませんでした。PNGかJPEGのスクショを選んでください。", true); return; }
-  shots = loaded; files = loaded.map(s=>s.file);
+  if (!loaded.length){ status("画像を開けませんでした。PNGかJPEGのスクショを選んでください。", true); return true; }
+  const added = shots.length > 0;
+  shots = shots.concat(loaded); files = shots.map(s=>s.file);
   $("shotWrap").hidden = false;
-  remerge(over ? "5枚目以降は使っていません(はみ出る分は2で手入力してください)。" : "");
+  remerge((added ? `${loaded.length}枚追加しました。` : "") + (over ? `${MAX_SHOTS}枚を超えた分は使っていません。` : ""));
   return true;
 };
+function removeShot(i){
+  shots.splice(i, 1); files = shots.map(s=>s.file);
+  shots.forEach(s=>{ s.manual = false; s.oy = 0; s.ox = 0; }); // 基準の画像が変わるので手動の位置合わせはやり直し
+  if (!shots.length){ clearShots(); return; }
+  remerge(`${i+1}枚目を削除しました。`);
+}
+function clearShots(){
+  shots = []; files = []; merged = null;
+  $("shots").innerHTML = ""; $("shotWrap").hidden = true; $("aiBox").hidden = true;
+  status("画像を消しました。盤面はそのまま残っています。");
+}
+$("clearShots").onclick = clearShots;
 $("file").onchange = async e => { const list = [...(e.target.files || [])]; e.target.value = ""; await readShots(list); };
 
 /* PC: Ctrl+V で貼り付け / ドラッグ&ドロップ */
